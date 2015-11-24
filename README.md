@@ -27,12 +27,12 @@ Progress:
 2. finish implementing position based integration method
 3. finish implementing simple primitive collision detection and resolve method
 
-Next step:
+Next Step:
 
 1. implicit method (require using cuSolver to solve linear system with sparse matrix)
 2. AABB tree collision detection and resolve using imported obj file
 3. more advanced integration method (projective dynamics)
 4. new simulation effect (tear apart, etc)
 
-Presentation Slide Link: (https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit)
+Presentation Slides Link: (https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit)
 
