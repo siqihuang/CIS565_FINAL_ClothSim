@@ -12,8 +12,8 @@ struct GPUConstraint{
 	float stiffnessPBD;
 	int p1;
 	int p2;
-	int index;
-	float length;
+	int fix_index;
+	float rest_length;
 	glm::vec3 fixedPoint;
 };
 
@@ -40,10 +40,17 @@ void collisionResolving();
 void copyData(GPUConstraint *GConstraint,GPUPrimitive *Gprimitive,glm::vec3 *pos,glm::vec3 *vel,int height,int width,
 			  int constraintNum,int primitiveNum,float mass,float restitution_coefficient);
 void calculateExternalForceoOnGPU();
-void integratePBDOnGPU(unsigned int ns,float dt);
+void calculateExternalForceoOnGPU1();
+void integratePBDOnGPU(int ns,float dt);
 void initData();
+void deleteData();
 void detectCollisionOnGPU();
 void resolveCollisionOnGPU();
+
+void integrateExplicitEuler_GPU(float dt);
+void integrateExplicitRK2_GPU(float dt);
+void integrateExplicitRK4_GPU(float dt);
+
 glm::vec3 *getPos();
 glm::vec3 *getVel();
 

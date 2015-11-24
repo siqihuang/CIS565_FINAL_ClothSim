@@ -51,6 +51,7 @@ extern bool g_record;
 extern bool g_pause;
 extern bool g_show_wireframe;
 extern bool g_show_texture;
+extern bool g_GPU_render;
 
 //----------anttweakbar handlers----------//
 extern void TW_CALL reset_simulation(void*);
@@ -84,6 +85,7 @@ void AntTweakBarWrapper::Init()
     TwAddVarRW(m_control_panel_bar, "Pause", TwType(sizeof(bool)), &(g_pause), "group='State Control'");
     TwAddButton(m_control_panel_bar, "Step Once", step_through, NULL, "group='State Control' ");
     TwAddVarRW(m_control_panel_bar, "Record", TwType(sizeof(bool)), &(g_record), "group='State Control'");
+	TwAddVarRW(m_control_panel_bar, "GPU", TwType(sizeof(bool)), &(g_GPU_render), "group='State Control'");
     TwAddSeparator(m_control_panel_bar, NULL, "");
     // visualization
     TwAddVarRW(m_control_panel_bar, "Wireframe", TwType(sizeof(bool)), &(g_show_wireframe), "group='Visualization'");

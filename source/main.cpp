@@ -64,6 +64,7 @@ int g_screen_height = DEFAULT_SCREEN_HEIGHT;
 bool g_only_show_sim = false;
 bool g_record = false;
 bool g_pause = true;
+bool g_GPU_render = true;
 bool g_show_wireframe = false;
 bool g_show_texture = false;
 bool g_texture_load_succeed = false;

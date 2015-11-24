@@ -42,6 +42,8 @@
 class Mesh;
 class AntTweakBarWrapper;
 
+extern bool g_GPU_render;
+
 typedef enum
 {
     INTEGRATION_EXPLICIT_EULER,
@@ -73,6 +75,8 @@ public:
 
     void Reset();
     void Update();
+	void GPUUpdate();
+	void CPUUpdate();
     void DrawConstraints(const VBO& vbos);
 
     // select/unselect/move attachment constratins

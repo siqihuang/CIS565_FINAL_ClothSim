@@ -47,7 +47,7 @@ public:
 
     virtual void  EvaluateGradient(const VectorX& x, VectorX& gradient) = 0;
     virtual void  EvaluateHessian(const VectorX& x, std::vector<SparseMatrixTriplet>& hessian_triplets) = 0;
-	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns,int n) = 0;
+	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns) = 0;
 
 	inline const ScalarType& Stiffness() {return (*m_p_stiffness);}
 	inline const ScalarType& StiffnessPBD() {return (*m_p_pbd_stiffness);}
@@ -73,7 +73,7 @@ public:
 
     virtual void  EvaluateGradient(const VectorX& x, VectorX& gradient);
     virtual void  EvaluateHessian(const VectorX& x, std::vector<SparseMatrixTriplet>& hessian_triplets);
-	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns,int n);
+	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns);
 
 public://changed from protected to public for convenience
     unsigned int m_p0;
@@ -103,7 +103,7 @@ public:
 
     virtual void  EvaluateGradient(const VectorX& x, VectorX& gradient);
     virtual void  EvaluateHessian(const VectorX& x, std::vector<SparseMatrixTriplet>& hessian_triplets);
-	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns,int n);
+	virtual void  PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns);
 
 public://changed from protected to public for convenience
     unsigned int m_p1, m_p2;

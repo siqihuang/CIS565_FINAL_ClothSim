@@ -45,6 +45,7 @@ Simulation::~Simulation()
 void Simulation::Reset()
 {    
     m_external_force.resize(m_mesh->m_system_dimension);
+	deleteData();
 
     setupConstraints();
 	EigenVector3 v;
@@ -53,26 +54,47 @@ void Simulation::Reset()
 }
 
 void Simulation::Update(){
+	if(g_GPU_render){ 
+		GPUUpdate();
+	}
+	else{
+		CPUUpdate();
+	}
+}
+
+void Simulation::GPUUpdate(){
 	calculateExternalForceoOnGPU();
 
 	float dt = m_h / m_iterations_per_frame;
-
-	//for(int i=0;i<m_iterations_per_frame;++i)
-		integratePBDOnGPU(m_iterations_per_frame,dt);
+	
+	switch (m_integration_method)
+	{
+		case INTEGRATION_EXPLICIT_EULER:
+			integrateExplicitEuler_GPU(m_h);
+			break;
+		case INTEGRATION_EXPLICIT_RK2:
+			integrateExplicitRK2_GPU(m_h);
+			break;
+		case INTEGRATION_EXPLICIT_RK4:
+			integrateExplicitRK4_GPU(m_h);
+			break;
+		case INTEGRATION_POSITION_BASED_DYNAMICS:
+			integratePBDOnGPU(m_iterations_per_frame,dt);
+			break;
+	}
 	
 	detectCollisionOnGPU();
 	resolveCollisionOnGPU();
 
-	glm::vec3 *pos,*vel;
+	glm::vec3 *pos;
 	pos=getPos();
-	vel=getVel();
 	int size=m_mesh->m_dim[0]*m_mesh->m_dim[1];
 	for(int i=0;i<size;++i){
 		m_mesh->m_current_positions.block_vector(i)=GLM2Eigen(pos[i]);
 	}
 }
 
-/*void Simulation::Update()
+void Simulation::CPUUpdate()
 {
 	// LOOK: main simulation loop
 
@@ -119,7 +141,7 @@ void Simulation::Update(){
 
     // damping
     //dampVelocity();
-}*/
+}
 
 void Simulation::DrawConstraints(const VBO& vbos)
 {
@@ -270,7 +292,7 @@ void Simulation::copyDataToGPU(){
 		Gconstraint[i].type=m_constraints[i]->type;
 		if(Gconstraint[i].type==0){
 			AttachmentConstraint *a=(AttachmentConstraint*)m_constraints[i];
-			Gconstraint[i].index=a->m_p0;
+			Gconstraint[i].fix_index=a->m_p0;
 			EigenVector3 v=a->GetFixedPoint();
 			Gconstraint[i].fixedPoint=glm::vec3(v.x(),v.y(),v.z());
 		}
@@ -278,7 +300,7 @@ void Simulation::copyDataToGPU(){
 			SpringConstraint *s=(SpringConstraint*)m_constraints[i];
 			Gconstraint[i].p1=s->m_p1;
 			Gconstraint[i].p2=s->m_p2;
-			Gconstraint[i].length=s->m_rest_length;
+			Gconstraint[i].rest_length=s->m_rest_length;
 			//cout<<Gconstraint[i].length<<endl;
 		}
 	}
@@ -330,8 +352,8 @@ void Simulation::setupConstraints()
         // procedurally generate constraints including to attachment constraints
         {
             // generating attachment constraints.
-            //AddAttachmentConstraint(0);
-            //AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
+            AddAttachmentConstraint(0);
+            AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
 
 			// TODO
             // generate stretch constraints. assign a stretch constraint for each edge.
@@ -648,21 +670,51 @@ void Simulation::integrateImplicitBW(VectorX& x, VectorX& v, ScalarType dt)
 void Simulation::integratePBD(VectorX& x, VectorX& v, unsigned int ns)
 {
 	// TODO:
+	/*v = v + m_h*m_mesh->m_inv_mass_matrix*m_external_force;
+	//tmp update the p
+	VectorX p = x;
+	p = x + m_h*v;
+	
+	//project the p
+	for (int k = 0; k<ns; k++)
+	{
+		if (glm::mod(float(k),2.f)==0)
+		{
+			for (int i = 0; i<m_constraints.size() ;i++)
+			{
+				m_constraints[i]->PBDProject(p, m_mesh->m_inv_mass_matrix, k);
+			}
+		}
+		else
+		{
+			for (int i = 0; i<m_constraints.size() ;i++)
+			{
+				m_constraints[i]->PBDProject(p, m_mesh->m_inv_mass_matrix, k);
+			}
+		}
+		
+	}
+
+	//update the v and x
+	v = (p - x)/m_h;
+	x = p;*/
 	float dt = m_h / m_iterations_per_frame;
 	float dm=m_mesh->m_total_mass/(m_mesh->m_dim[0]*m_mesh->m_dim[1]);
+	//float dm=m_mesh->m_total_mass/ns;
 	VectorX f,p;
 	//computeForces(x,f);
-	//calculateExternalForce();
+	calculateExternalForce();
 	f=this->m_external_force;
 	v=v+dt*f/dm;
+	//v = v + m_h * m_mesh->m_inv_mass_matrix * f;
 	p=x+dt*v;
 
-	int count=0;
 	for(std::vector<Constraint*>::iterator it = m_constraints.begin(); it != m_constraints.end(); ++it)
     {
-		(*it)->PBDProject(p,m_mesh->m_inv_mass_matrix,ns,-1);
-		count++;
+		(*it)->PBDProject(p,m_mesh->m_inv_mass_matrix,ns);
 	}
+	//SpringConstraint *c = new SpringConstraint(&m_stiffness_stretch, &m_stiffness_stretch_pbd, e->m_v1, e->m_v2, (p1-p2).norm());
+   // m_constraints.push_back(c);
 
 	v=(p-x)/dt;
 	x=p;

@@ -93,7 +93,7 @@ void AttachmentConstraint::EvaluateHessian(const VectorX& x, std::vector<SparseM
     hessian_triplets.push_back(SparseMatrixTriplet(3*m_p0+2, 3*m_p0+2, ks));
 }
 
-void AttachmentConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns,int n)
+void AttachmentConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns)
 {
 	// LOOK
 	ScalarType k_prime = 1 - std::pow(1-*(m_p_pbd_stiffness), 1.0/ns);
@@ -166,7 +166,7 @@ void SpringConstraint::EvaluateHessian(const VectorX& x, std::vector<SparseMatri
 	// TODO
 }
 
-void SpringConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns,int n)
+void SpringConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns)
 {
 	// TODO
 	// change project order
@@ -176,18 +176,13 @@ void SpringConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsi
 	EigenVector3 p1 = x.block_vector(m_p1);
 	EigenVector3 p2 = x.block_vector(m_p2);
 
-	float current_length=(p1-p2).norm()+0.001;
+	float current_length=(p1-p2).norm();
 	EigenVector3 current_direction=(p1-p2)/current_length;
 	EigenVector3 dp=(current_length-rest_length)*current_direction;
 
 	ScalarType w1=inv_mass.coeff(m_p1,m_p1);
 	ScalarType w2=inv_mass.coeff(m_p2,m_p2);
 	
-	if(n==0)cout<<x.block_vector(m_p1).x()<<","<<x.block_vector(m_p1).y()<<","<<x.block_vector(m_p1).z()<<endl;
 	x.block_vector(m_p1) -= k_prime * dp*w1/(w1+w2);
 	x.block_vector(m_p2) += k_prime * dp*w2/(w1+w2);
-	if(n==0){
-		cout<<x.block_vector(m_p1).x()<<","<<x.block_vector(m_p1).y()<<","<<x.block_vector(m_p1).z()<<endl;
-		getchar();
-	}
 }
