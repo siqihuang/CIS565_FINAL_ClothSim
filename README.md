@@ -34,3 +34,5 @@ Next step:
 3. more advanced integration method (projective dynamics)
 4. new simulation effect (tear apart, etc)
 
+Presentation Slide Link: ![](https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit)
+
