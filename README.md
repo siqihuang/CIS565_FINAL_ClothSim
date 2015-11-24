@@ -7,7 +7,7 @@ GPU-Based Cloth Simulation
 
 Progress
 ========================
-### Project Overview
+### Project Overview (11/16/2015)
 
 Motivation for Project:
 
@@ -20,7 +20,7 @@ Implement the basic GPU version of the cloth simulation(transfer CPU algorithm t
 Compare the performance analysis of the CPU and GPU version, find the bottleneck of each and try to refine the GPU version
 Implement extra feature and deploy new scene(only on scene in CPU version) and also compare performance
 
-### MileStone1
+### MileStone1 (11/23/2015)
 Progress:
 
 1. finish implementing force based integration method (explicit euler, RK2, RK4) 
