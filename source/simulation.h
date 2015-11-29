@@ -39,6 +39,15 @@
 #include "scene.h"
 #include "kernel.h"
 
+//----------cuda solver test--------------//
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include <cusolverSp.h>
+#include <cusparse.h>
+#include <cassert>
+
+
+
 class Mesh;
 class AntTweakBarWrapper;
 
@@ -122,6 +131,11 @@ protected:
     // number of iterations per frame
     unsigned int m_iterations_per_frame;
 
+
+	//for implicit method
+	SparseMatrix m_A;
+	int m_nnz;
+
 private:
 
     // main update sub-routines
@@ -147,7 +161,10 @@ private:
     void factorizeDirectSolverLLT(const SparseMatrix& A, Eigen::SimplicialLLT<SparseMatrix, Eigen::Upper>& lltSolver, char* warning_msg = ""); // factorize matrix A using LLT decomposition
     void factorizeDirectSolverLDLT(const SparseMatrix& A, Eigen::SimplicialLDLT<SparseMatrix, Eigen::Upper>& ldltSolver, char* warning_msg = ""); // factorize matrix A using LDLT decomposition
     void generateRandomVector(const unsigned int size, VectorX& x); // generate random vector varing from [-1 1].
+	
+	//GPU version
 	void copyDataToGPU();
+	void computeSystemMatrix(); //A = M-dt*dt*K; K is stiffness matrix
 };
 
 #endif

@@ -48,6 +48,7 @@ void Simulation::Reset()
 	deleteData();
 
     setupConstraints();
+	computeSystemMatrix();
 	EigenVector3 v;
 
     m_selected_attachment_constraint = NULL;
@@ -67,22 +68,36 @@ void Simulation::GPUUpdate(){
 
 	float dt = m_h / m_iterations_per_frame;
 	
-	switch (m_integration_method)
+	
+	
+	for (unsigned int it = 0; it != m_iterations_per_frame; ++it)
 	{
+		switch (m_integration_method)
+		{
 		case INTEGRATION_EXPLICIT_EULER:
-			integrateExplicitEuler_GPU(m_h);
+			integrateExplicitEuler_GPU(dt);
 			break;
 		case INTEGRATION_EXPLICIT_RK2:
-			integrateExplicitRK2_GPU(m_h);
+			integrateExplicitRK2_GPU(dt);
 			break;
 		case INTEGRATION_EXPLICIT_RK4:
-			integrateExplicitRK4_GPU(m_h);
+			integrateExplicitRK4_GPU(dt);
 			break;
-		case INTEGRATION_POSITION_BASED_DYNAMICS:
-			integratePBDOnGPU(m_iterations_per_frame,dt);
+		case INTEGRATION_IMPLICIT_EULER_BARAFF_WITKIN:
+			integrateImplicitBW_GPU(dt);
 			break;
+		}
 	}
+
+
+	// pbd integration method
+	if (m_integration_method == INTEGRATION_POSITION_BASED_DYNAMICS)
+	{
+		
+		integratePBDOnGPU(m_iterations_per_frame, dt);
 	
+	}
+
 	detectCollisionOnGPU();
 	resolveCollisionOnGPU();
 
@@ -806,6 +821,36 @@ void Simulation::generateRandomVector(const unsigned int size, VectorX& x)
     {
         x(i) = ((ScalarType)(rand())/(ScalarType)(RAND_MAX+1)-0.5)*2;
     }
+}
+
+void Simulation::computeSystemMatrix()
+{
+	SparseMatrix M = m_mesh->m_mass_matrix;
+	SparseMatrix K;
+	VectorX x;
+	computeStiffnessMatrix(x, K);
+	ScalarType dt = m_h / m_iterations_per_frame;
+	// fill A
+	m_A = M - dt*dt*K;
+
+	vector<int> host_Rows;
+	vector<int> host_Cols;
+	vector<float> host_Val;
+	// copy to GPU
+
+	for (int k = 0; k < m_A.outerSize(); ++k)
+	{
+		for (SparseMatrix::InnerIterator it(m_A, k); it; ++it)
+		{
+			host_Val.push_back(it.value());
+			host_Rows.push_back(it.row());   // row index
+			host_Cols.push_back(it.col());   // col index (here it is equal to k)
+		}
+	}
+
+	convertSystemMatrix(host_Rows, host_Cols, host_Val);
+	
+		
 }
 
 #pragma endregion

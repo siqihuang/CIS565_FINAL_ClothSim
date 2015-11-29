@@ -164,6 +164,14 @@ void SpringConstraint::EvaluateGradient(const VectorX& x, VectorX& gradient)
 void SpringConstraint::EvaluateHessian(const VectorX& x, std::vector<SparseMatrixTriplet>& hessian_triplets)
 {
 	// TODO
+	ScalarType ks = *(m_p_stiffness);
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p1, 3 * m_p1, ks));
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p1 + 1, 3 * m_p1 + 1, ks));
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p1 + 2, 3 * m_p1 + 2, ks));
+
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p2, 3 * m_p2, ks));
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p2 + 1, 3 * m_p2 + 1, ks));
+	hessian_triplets.push_back(SparseMatrixTriplet(3 * m_p2 + 2, 3 * m_p2 + 2, ks));
 }
 
 void SpringConstraint::PBDProject(VectorX& x, const SparseMatrix& inv_mass, unsigned int ns)

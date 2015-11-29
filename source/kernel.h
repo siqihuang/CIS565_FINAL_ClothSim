@@ -1,10 +1,17 @@
 #pragma once
-#ifndef _KERENL_
+#ifndef _KERNEL_
 #define _KERNEL_
 #include <cuda.h>
 #include <vector>
 #include <string>
 #include "glm.hpp"
+
+//----------cuda solver test--------------//
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include <cusolverSp.h>
+#include <cusparse.h>
+#include <cassert>
 
 struct GPUConstraint{
 	int type;//0 for Attachment constraint, 1 for Spring constraint
@@ -51,7 +58,16 @@ void integrateExplicitEuler_GPU(float dt);
 void integrateExplicitRK2_GPU(float dt);
 void integrateExplicitRK4_GPU(float dt);
 
+void integrateImplicitBW_GPU(float dt);
+void convertSystemMatrix(std::vector<int> & host_Rows, std::vector<int> & host_Cols, std::vector<float> & host_Val);
+
 glm::vec3 *getPos();
 glm::vec3 *getVel();
+
+
+
+
+
+
 
 #endif

@@ -45,6 +45,17 @@ static glm::vec3 * dev_pos_temp1;
 static glm::vec3 * dev_vel_temp1;
 static glm::vec3 * dev_external_force;
 
+static float* dev_vel_implicit;
+//static float* dev_pos_implicit;
+static float* dev_b_implicit;
+static float* dev_force_implicit;
+
+static int* dev_coo_Rows;
+static int* dev_csr_Rows;
+static int* dev_Cols;
+static float* dev_Val;
+static int dev_nnz;
+
 /*
 helper function for matrix operation
 */
@@ -113,6 +124,37 @@ __global__ void vector_minus_vector_mul(glm::vec3 *v1,glm::vec3 *v2,glm::vec3 *v
 		v3[index]=(v1[index]-v2[index])*mul;
 	}
 }
+
+__global__ void compute_b(float mass, float dt, float* _dev_v, float* _dev_force, float* b,int N)
+{
+	int index = blockDim.x*blockIdx.x + threadIdx.x;
+	if (index<N){
+		b[index] = mass*_dev_v[index] + dt*_dev_force[index];
+	}
+}
+
+__global__ void convert_2_implicit_data(glm::vec3* data_in, float* data_out, int N)
+{
+	int index = blockDim.x*blockIdx.x + threadIdx.x;
+	if (index<N){
+		data_out[3 * index] = data_in[index].x;
+		data_out[3 * index + 1] = data_in[index].y;
+		data_out[3 * index + 2] = data_in[index].z;
+	}
+}
+
+__global__ void inv_convert_2_implicit_data(float* data_in, glm::vec3* data_out, int N)
+{
+	int index = blockDim.x*blockIdx.x + threadIdx.x;
+	if (index<N){
+		data_out[index].x = data_in[3 * index];
+		data_out[index].y = data_in[3 * index + 1];
+		data_out[index].z = data_in[3 * index + 2];
+	
+	}
+}
+
+
 
 /*
 helper function for matrix operation
@@ -371,12 +413,19 @@ void initData(){
 	cudaMalloc(&dev_k4_x, dimension*sizeof(glm::vec3));
 	cudaMalloc(&dev_k4_v, dimension*sizeof(glm::vec3));
 
+	cudaMalloc(&dev_vel_implicit, 3 * dimension*sizeof(float));
+	cudaMalloc(&dev_force_implicit, 3 * dimension*sizeof(float));
+	cudaMalloc(&dev_b_implicit, 3 * dimension*sizeof(float));
+	
 	cudaMemcpy(dev_pos,pos,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_vel,vel,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_constraint,constraint,constraintNum*sizeof(GPUConstraint),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_primitive,primitive,primitiveNum*sizeof(GPUConstraint),cudaMemcpyHostToDevice);
 	cudaMemset(dev_force,0,dimension*sizeof(glm::vec3));
 	cudaMemset(dev_external_force,0,dimension*sizeof(glm::vec3));
+
+
+	
 }
 
 void deleteData(){
@@ -587,6 +636,73 @@ void integrateExplicitRK4_GPU(float dt)
 	cudaMemcpy(pos, dev_pos, dimension*sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 }
 
+
+void integrateImplicitBW_GPU(float dt)
+{
+	cudaMemset(dev_force, 0, dimension*sizeof(glm::vec3));
+
+	//compute force
+	kern_compute_force << <(constraintNum + 255) / 256, 256 >> >(dev_force, dev_pos, dev_constraint, constraintNum);
+	cudaDeviceSynchronize();
+	//add external force 
+	vector_add_vector << <(dimension + 255) / 256, 256 >> > (dev_force, dev_external_force, dev_force, dimension);
+    
+	//convert to implicit data
+	convert_2_implicit_data << <(dimension + 255) / 256, 256 >> > (dev_vel,dev_vel_implicit,dimension);
+	convert_2_implicit_data << <(dimension + 255) / 256, 256 >> > (dev_force, dev_force_implicit, dimension);
+
+	compute_b << <(3 * dimension + 255) / 256, 256 >> > (mass, dt, dev_vel_implicit, dev_force_implicit, dev_b_implicit, 3 * dimension);
+
+	// --- create library handles:
+	cusolverSpHandle_t cusolver_handle;
+	cusolverStatus_t cusolver_status;
+	cusolver_status = cusolverSpCreate(&cusolver_handle);
+	//std::cout << "status create cusolver handle: " << cusolver_status << std::endl;
+
+	cusparseHandle_t cusparse_handle;
+	cusparseStatus_t cusparse_status;
+	cusparse_status = cusparseCreate(&cusparse_handle);
+	//std::cout << "status create cusparse handle: " << cusparse_status << std::endl;
+
+	
+	
+	cusparseMatDescr_t descrA;
+
+	cusparse_status = cusparseCreateMatDescr(&descrA);
+	//std::cout << "status cusparse createMatDescr: " << cusparse_status << std::endl;
+
+	//solving
+	
+	float tol = 1e-3;
+	int reorder = 0;
+	int singularity = 0;
+	
+	//std::cout << dev_nnz << std::endl;
+	
+	cusolver_status = cusolverSpScsrlsvchol(cusolver_handle, 3 * dimension, dev_nnz, descrA, dev_Val,
+		dev_csr_Rows, dev_Cols, dev_b_implicit, tol, reorder, dev_vel_implicit,
+		&singularity);
+
+	cudaDeviceSynchronize();
+
+	//std::cout << "singularity (should be -1): " << singularity << std::endl;
+
+	//std::cout << "status cusolver solving (!): " << cusolver_status << std::endl;
+
+	// relocated these 2 lines from above to solve (2):
+	cusparse_status = cusparseDestroy(cusparse_handle);
+	//std::cout << "status destroy cusparse handle: " << cusparse_status << std::endl;
+
+	cusolver_status = cusolverSpDestroy(cusolver_handle);
+	//std::cout << "status destroy cusolver handle: " << cusolver_status << std::endl;
+
+	//convert the data back
+	inv_convert_2_implicit_data << <(dimension + 255) / 256, 256 >> > (dev_vel_implicit, dev_vel, dimension);
+
+	vector_add_mulvector << <(dimension + 255) / 256, 256 >> >(dev_pos, dev_vel, dev_pos, dt, dimension);
+
+}
+
 //====================	integration	====================
 
 glm::vec3 *getPos(){
@@ -630,4 +746,77 @@ void testCuda(){
 	for(int i=0;i<10;++i){
 		std::cout<<a[i]<<","<<b[i]<<","<<c[i]<<std::endl;
 	}
+}
+
+
+void convertSystemMatrix(std::vector<int> &host_Rows, std::vector<int> &host_Cols, std::vector<float> &host_Val)
+{
+	//step1 convert to coo format
+
+	int nnz = host_Val.size();
+	dev_nnz = nnz;
+
+	cudaMalloc((void**)&dev_Val, nnz*sizeof(float));
+	cudaMalloc((void**)&dev_coo_Rows, nnz*sizeof(int));
+	cudaMalloc((void**)&dev_csr_Rows, (dimension*3 + 1)*sizeof(int));
+	cudaMalloc((void**)&dev_Cols, nnz*sizeof(int));
+
+
+
+
+	cudaMemcpy(dev_Val, host_Val.data(), nnz*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_coo_Rows, host_Rows.data(), nnz*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_Cols, host_Cols.data(), nnz*sizeof(int), cudaMemcpyHostToDevice);
+
+
+	//std::vector<float> hst_rows(nnz, 0);
+
+	//cudaMemcpy(hst_rows.data(), dev_Val, nnz*sizeof(float), cudaMemcpyDeviceToHost);
+
+	//for (int i = 0; i < 10; i++)
+	//{
+	//	std::cout << hst_rows[i] << std::endl;
+	//}
+
+	cusparseHandle_t cusparse_handle;
+	cusparseStatus_t cusparse_status;
+	cusparse_status = cusparseCreate(&cusparse_handle);
+	std::cout << "status create cusparse handle: " << cusparse_status << std::endl;
+
+
+	cusparse_status = cusparseXcoo2csr(cusparse_handle, dev_coo_Rows, nnz, dimension*3,
+		dev_csr_Rows, CUSPARSE_INDEX_BASE_ZERO);
+	std::cout << "status cusparse coo2csr conversion: " << cusparse_status << std::endl;
+
+	cudaDeviceSynchronize(); // matrix format conversion has to be finished!
+	
+
+	
+	//check the matrix
+	
+	//cusparseMatDescr_t descrA;
+
+	//cusparse_status = cusparseCreateMatDescr(&descrA);
+	//std::cout << "status cusparse createMatDescr: " << cusparse_status << std::endl;
+	//
+	//std::vector<float> A(dimension * 3 * dimension * 3, 0);
+	//float *dA;
+	//cudaMalloc((void**)&dA, A.size()*sizeof(float));
+
+	//cusparseScsr2dense(cusparse_handle, dimension * 3, dimension * 3, descrA, dev_Val,
+	//	dev_csr_Rows, dev_Cols, dA, dimension * 3);
+
+	//cudaMemcpy(A.data(), dA, A.size()*sizeof(float), cudaMemcpyDeviceToHost);
+	//std::cout << "A: \n";
+	//for (int i = 0; i < 10; ++i) {
+	//	for (int j = 0; j < 10; ++j) {
+	//		std::cout << A[i*dimension * 3 + j] << " ";
+	//	}
+	//	std::cout << std::endl;
+	//}
+	//cudaFree(dA);
+
+
+	cusparse_status = cusparseDestroy(cusparse_handle);
+	std::cout << "status destroy cusparse handle: " << cusparse_status << std::endl;
 }

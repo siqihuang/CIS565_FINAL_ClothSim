@@ -48,6 +48,13 @@
 #include "simulation.h"
 
 #include "kernel.h"
+//----------cuda solver test--------------//
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include <cusolverSp.h>
+#include <cusparse.h>
+#include <cassert>
+
 //----------Project Key Globals--------------//
 AntTweakBarWrapper* g_config_bar;
 Camera* g_camera;
@@ -100,6 +107,180 @@ void cleanup(void);
 void draw_overlay(void);
 void grab_screen(void);
 void grab_screen(char* filename);
+
+
+// create poisson matrix with Dirichlet bc. of a rectangular grid with
+// dimension NxN
+void assemble_matrix_coo(std::vector<float>& vals, std::vector<int>& row, std::vector<int>& col,
+	std::vector<float>& rhs, int Nrows, int Ncols)
+{
+
+}
+
+
+int main2()
+{
+	// --- create library handles:
+	cusolverSpHandle_t cusolver_handle;
+	cusolverStatus_t cusolver_status;
+	cusolver_status = cusolverSpCreate(&cusolver_handle);
+	std::cout << "status create cusolver handle: " << cusolver_status << std::endl;
+
+	cusparseHandle_t cusparse_handle;
+	cusparseStatus_t cusparse_status;
+	cusparse_status = cusparseCreate(&cusparse_handle);
+	std::cout << "status create cusparse handle: " << cusparse_status << std::endl;
+
+	// --- prepare matrix:
+	int Nrows = 2;
+	int Ncols = 2;
+	/*std::vector<float> csrVal;
+	std::vector<int> cooRow;
+	std::vector<int> csrColInd;
+	std::vector<float> b;*/
+
+	//assemble_matrix_coo(csrVal, cooRow, csrColInd, b, Nrows, Ncols);
+	int a[4] = { 3 , 2, 1, 0 };
+	
+	std::vector<float> csrVal(4,1.0);
+	std::vector<int> cooRow (a,a + 4);
+	std::vector<int> csrColInd(a, a + 4);
+	std::vector<float> b(4,10.0);
+
+	int nnz = csrVal.size();
+
+	int m = Nrows * Ncols;
+	std::vector<int> csrRowPtr(m + 1);
+
+	// --- prepare solving and copy to GPU:
+	std::vector<float> x(m);
+	float tol = 1e-5;
+	int reorder = 0;
+	int singularity = 0;
+
+	float *db, *dcsrVal, *dx;
+	float* dev_cooVal;
+	int *dcsrColInd, *dcsrRowPtr, *dcooRow;
+	cudaMalloc((void**)&db, m*sizeof(float));
+	cudaMalloc((void**)&dx, m*sizeof(float));
+	cudaMalloc((void**)&dcsrVal, nnz*sizeof(float));
+	cudaMalloc((void**)&dev_cooVal, nnz*sizeof(float));
+	cudaMalloc((void**)&dcsrColInd, nnz*sizeof(int));
+	cudaMalloc((void**)&dcsrRowPtr, (m + 1)*sizeof(int));
+	cudaMalloc((void**)&dcooRow, nnz*sizeof(int));
+
+	
+	cudaMemcpy(db, b.data(), b.size()*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_cooVal, csrVal.data(), csrVal.size()*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dcsrColInd, csrColInd.data(), csrColInd.size()*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(dcooRow, cooRow.data(), cooRow.size()*sizeof(int), cudaMemcpyHostToDevice);
+	
+	
+	//coo sort by row
+	size_t pBufferSizeInBytes = 0; void *pBuffer = NULL; int *P = NULL;
+	// step 1: allocate buffer 
+	cusparseXcoosort_bufferSizeExt(cusparse_handle, 4, 4, nnz, dcooRow, dcsrColInd, &pBufferSizeInBytes);
+	cudaMalloc(&pBuffer, sizeof(char)* pBufferSizeInBytes);
+	// step 2: setup permutation vector P to identity 
+	cudaMalloc(&P, sizeof(int)*nnz);
+	cusparseCreateIdentityPermutation(cusparse_handle, nnz, P);
+	// step 3: sort COO format by Row 
+	cusparseXcoosortByRow(cusparse_handle, 4, 4, nnz, dcooRow, dcsrColInd, P, pBuffer);
+	// step 4: gather sorted cooVals 
+	cusparseSgthr(cusparse_handle, nnz, dev_cooVal, dcsrVal, P, CUSPARSE_INDEX_BASE_ZERO);
+
+
+
+
+
+
+	
+
+	cusparse_status = cusparseXcoo2csr(cusparse_handle, dcooRow, nnz, m,
+		dcsrRowPtr, CUSPARSE_INDEX_BASE_ZERO);
+	std::cout << "status cusparse coo2csr conversion: " << cusparse_status << std::endl;
+
+	cudaDeviceSynchronize(); // matrix format conversion has to be finished!
+
+	// --- everything ready for computation:
+
+	cusparseMatDescr_t descrA;
+
+	cusparse_status = cusparseCreateMatDescr(&descrA);
+	std::cout << "status cusparse createMatDescr: " << cusparse_status << std::endl;
+
+	// optional: print dense matrix that has been allocated on GPU
+
+	std::vector<float> A(m*m, 0);
+	float *dA;
+	cudaMalloc((void**)&dA, A.size()*sizeof(float));
+
+	cusparseScsr2dense(cusparse_handle, m, m, descrA, dcsrVal,
+		dcsrRowPtr, dcsrColInd, dA, m);
+
+	cudaMemcpy(A.data(), dA, A.size()*sizeof(float), cudaMemcpyDeviceToHost);
+	std::cout << "A: \n";
+	for (int i = 0; i < m; ++i) {
+		for (int j = 0; j < m; ++j) {
+			std::cout << A[i*m + j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
+	cudaFree(dA);
+
+	std::cout << "b: \n";
+	cudaMemcpy(b.data(), db, (m)*sizeof(int), cudaMemcpyDeviceToHost);
+	for (int i = 0; i<b.size(); i++) {
+		std::cout << b[i] << ",";
+	}
+	std::cout << std::endl;
+
+
+	// --- solving!!!!
+
+	//    cusolver_status = cusolverSpScsrlsvchol(cusolver_handle, m, nnz, descrA, dcsrVal,
+	//                       dcsrRowPtr, dcsrColInd, db, tol, reorder, dx,
+	//                       &singularity);
+
+	cusolver_status = cusolverSpScsrlsvchol(cusolver_handle, m, nnz, descrA, dcsrVal,
+		dcsrRowPtr, dcsrColInd, db, tol, reorder, dx,
+		&singularity);
+
+	cudaDeviceSynchronize();
+
+	std::cout << "singularity (should be -1): " << singularity << std::endl;
+
+	std::cout << "status cusolver solving (!): " << cusolver_status << std::endl;
+
+	cudaMemcpy(x.data(), dx, m*sizeof(float), cudaMemcpyDeviceToHost);
+
+	// relocated these 2 lines from above to solve (2):
+	cusparse_status = cusparseDestroy(cusparse_handle);
+	std::cout << "status destroy cusparse handle: " << cusparse_status << std::endl;
+
+	cusolver_status = cusolverSpDestroy(cusolver_handle);
+	std::cout << "status destroy cusolver handle: " << cusolver_status << std::endl;
+
+	for (int i = 0; i<x.size(); i++)
+	{
+		std::cout << x[i] << " ";
+	}
+	std::cout << std::endl;
+
+
+
+	cudaFree(db);
+	cudaFree(dx);
+	cudaFree(dcsrVal);
+	cudaFree(dcsrColInd);
+	cudaFree(dcsrRowPtr);
+	cudaFree(dcooRow);
+
+	return 0;
+
+}
+
 
 int main(int argc, char ** argv)
 {
