@@ -9,6 +9,23 @@ kdtree::kdtree(){
 	index=-1;
 }
 
+kdtree::kdtree(kdtree *root){
+	this->depth=root->depth;
+	this->index=root->index;
+	this->xMax=root->xMax;
+	this->xMin=root->xMin;
+	this->yMax=root->yMax;
+	this->yMin=root->yMin;
+	this->zMax=root->zMax;
+	this->zMin=root->zMin;
+	this->sortVector=root->sortVector;
+	this->Triangles=root->Triangles;
+	this->indices=root->indices;
+	this->positions=root->positions;
+	this->lc=nullptr;
+	this->rc=nullptr;
+}
+
 void kdtree::createTree(int depth,vector<glm::vec3> *positions,vector<unsigned short> *indices,vector<unsigned int> Triangles){
 	this->depth=depth;
 	this->Triangles=Triangles;

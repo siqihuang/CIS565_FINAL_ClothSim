@@ -82,7 +82,7 @@ public:
 	PrimitiveType m_type;//changed from protected to public for convenience
 	kdtree tree;
 
-protected:
+public://changed from protected to public for convenience
     std::vector<glm::vec3> m_positions, m_colors, m_normals;
     std::vector<unsigned short> m_indices;
 };

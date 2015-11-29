@@ -19,6 +19,7 @@ public:
 	float xMax,yMax,zMax,xMin,yMin,zMin,xCenter,yCenter,zCenter;
 
 	kdtree();
+	kdtree(kdtree *root);
 	void createTree(int depth,vector<glm::vec3> *positions,vector<unsigned short> *indices,vector<unsigned int> Triangles);
 	void findBoundary();
 	void setPosition(glm::vec3 position);

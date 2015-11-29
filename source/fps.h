@@ -10,6 +10,7 @@
 #define __MMC_FPS_H__
 
 #include <vector>
+#include <iostream>
 
 namespace mmc
 {
