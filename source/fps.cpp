@@ -36,6 +36,8 @@ FpsTracker::timestamp ()
 float
 FpsTracker::fpsAverage () const
 {
+	//std::cout<<nSnaps_<<","<<steps_<<std::endl;
+	//getchar();
     int count = (nSnaps_ < steps_) ? nSnaps_ : steps_;
     long sum = 0L;
     for (int i = 0; i < count; ++i)

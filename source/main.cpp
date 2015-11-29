@@ -76,7 +76,7 @@ unsigned char g_button_mask = 0x00;
 
 //----------Frame Rate/Frame Number----------//
 mmc::FpsTracker g_fps_tracker;
-int g_max_fps = 30;
+int g_max_fps = 200;
 int g_timestep = 1000 / g_max_fps;
 int g_current_frame = 0;
 
@@ -126,7 +126,7 @@ int main(int argc, char ** argv)
     glutPassiveMotionFunc(mouse_over);
     glutMouseWheelFunc(mouse_wheel);
     glutCloseFunc(cleanup);
-    glutIdleFunc(display);
+    //glutIdleFunc(display);
 
     glutMainLoop();
     return 0;
@@ -148,9 +148,10 @@ void timeout(int value)
     glutTimerFunc(g_timestep, timeout, g_timestep);
     // keep track of time
     g_fps_tracker.timestamp();
-
+	
     // ant tweak bar update
     int atb_feed_back = g_config_bar->Update();
+	
     if (atb_feed_back&ATB_RESHAPE_WINDOW)
     {
         glutReshapeWindow(g_screen_width, g_screen_height);

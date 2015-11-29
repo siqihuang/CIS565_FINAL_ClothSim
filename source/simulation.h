@@ -121,6 +121,7 @@ protected:
 
     // number of iterations per frame
     unsigned int m_iterations_per_frame;
+	unsigned int springConstraintNum;
 
 private:
 

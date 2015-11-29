@@ -46,7 +46,6 @@ void Simulation::Reset()
 {    
     m_external_force.resize(m_mesh->m_system_dimension);
 	deleteData();
-
     setupConstraints();
 	EigenVector3 v;
 
@@ -85,6 +84,7 @@ void Simulation::GPUUpdate(){
 	
 	detectCollisionOnGPU();
 	resolveCollisionOnGPU();
+	dampVelocityOnGPU();
 
 	glm::vec3 *pos;
 	pos=getPos();
@@ -140,7 +140,7 @@ void Simulation::CPUUpdate()
 	resolveCollision(x, v, collisions);
 
     // damping
-    //dampVelocity();
+    dampVelocity();
 }
 
 void Simulation::DrawConstraints(const VBO& vbos)
@@ -243,7 +243,22 @@ bool Simulation::TryToToggleAttachmentConstraint(const EigenVector3& p0, const E
     {
         AddAttachmentConstraint(best_candidate);
     }
-
+	int size=m_constraints.size()-springConstraintNum;
+	if(size>0){
+		GPUConstraint *Gconstraint=new GPUConstraint[size];
+		for(int i=0;i<size;++i){
+			Gconstraint[i].stiffness=m_constraints[springConstraintNum+i]->Stiffness();
+			Gconstraint[i].stiffnessPBD=m_constraints[springConstraintNum+i]->StiffnessPBD();
+			Gconstraint[i].type=m_constraints[springConstraintNum+i]->type;
+			
+			AttachmentConstraint *a=(AttachmentConstraint*)m_constraints[springConstraintNum+i];
+			Gconstraint[i].fix_index=a->m_p0;
+			EigenVector3 v=a->GetFixedPoint();
+			Gconstraint[i].fixedPoint=glm::vec3(v.x(),v.y(),v.z());
+			Gconstraint[i].active=true;
+		}
+		updateAttachmentConstraintOnGPU(Gconstraint,size);
+	}
     return true;
 }
 
@@ -295,13 +310,14 @@ void Simulation::copyDataToGPU(){
 			Gconstraint[i].fix_index=a->m_p0;
 			EigenVector3 v=a->GetFixedPoint();
 			Gconstraint[i].fixedPoint=glm::vec3(v.x(),v.y(),v.z());
+			Gconstraint[i].active=true;
 		}
 		else{
 			SpringConstraint *s=(SpringConstraint*)m_constraints[i];
 			Gconstraint[i].p1=s->m_p1;
 			Gconstraint[i].p2=s->m_p2;
 			Gconstraint[i].rest_length=s->m_rest_length;
-			//cout<<Gconstraint[i].length<<endl;
+			Gconstraint[i].active=true;
 		}
 	}
 	//copy constraint
@@ -322,6 +338,35 @@ void Simulation::copyDataToGPU(){
 			Cube *c=(Cube*)m_scene->m_primitives[i];
 			Gprimitive[i].cSize=c->m_hf_dims;
 		}
+		else if(m_scene->m_primitives[i]->m_type==OBJMESH){
+			Gprimitive[i].type=3;
+			std::cout<<"1"<<std::endl;
+			ObjMesh *o=(ObjMesh*)m_scene->m_primitives[i];
+			Gprimitive[i].tree=initTree(&(o->tree));
+			glm::vec3 *dev_objVertex,*dev_objNormal,*objVertex,*objNormal;
+			int *dev_objIndices,*objIndices;
+			objVertex=new glm::vec3[o->m_positions.size()];
+			objNormal=new glm::vec3[o->m_normals.size()];
+			objIndices=new int[o->m_indices.size()];
+			cudaMalloc((void **)&dev_objVertex,o->m_positions.size()*sizeof(glm::vec3));
+			cudaMalloc((void **)&dev_objNormal,o->m_normals.size()*sizeof(glm::vec3));
+			cudaMalloc((void **)&dev_objIndices,o->m_indices.size()*sizeof(int));
+			for(int i=0;i<o->m_positions.size();++i){
+				objVertex[i]=o->m_positions[i];
+			}
+			for(int i=0;i<o->m_normals.size();++i){
+				objNormal[i]=o->m_normals[i];
+			}
+			for(int i=0;i<o->m_indices.size();++i){
+				objIndices[i]=o->m_indices[i];
+			}
+			cudaMemcpy(dev_objVertex,objVertex,o->m_positions.size()*sizeof(glm::vec3),cudaMemcpyHostToDevice);
+			cudaMemcpy(dev_objNormal,objNormal,o->m_normals.size()*sizeof(glm::vec3),cudaMemcpyHostToDevice);
+			cudaMemcpy(dev_objIndices,objIndices,o->m_indices.size()*sizeof(int),cudaMemcpyHostToDevice);
+			Gprimitive[i].objVertex=dev_objVertex;
+			Gprimitive[i].objNormal=dev_objNormal;
+			Gprimitive[i].objIndices=dev_objIndices;
+		}
 	}
 	//copy primitive
 	int size=m_mesh->m_dim[0]*m_mesh->m_dim[1];
@@ -335,7 +380,8 @@ void Simulation::copyDataToGPU(){
 	}
 	//copy position and velocity
 	float mass=m_mesh->m_mass_matrix.coeff(0,0);
-	copyData(Gconstraint,Gprimitive,pos,vel,m_mesh->m_dim[0],m_mesh->m_dim[1],m_constraints.size(),m_scene->m_primitives.size(),mass,m_restitution_coefficient);
+	copyData(Gconstraint,Gprimitive,pos,vel,m_mesh->m_dim[0],m_mesh->m_dim[1],m_constraints.size(),
+		springConstraintNum,m_scene->m_primitives.size(),mass,m_restitution_coefficient,m_damping_coefficient);
 
 	delete(pos);
 	delete(vel);
@@ -352,11 +398,10 @@ void Simulation::setupConstraints()
         // procedurally generate constraints including to attachment constraints
         {
             // generating attachment constraints.
-            AddAttachmentConstraint(0);
-            AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
 
 			// TODO
             // generate stretch constraints. assign a stretch constraint for each edge.
+			springConstraintNum=0;
 			EigenVector3 p1, p2;
             for(std::vector<Edge>::iterator e = m_mesh->m_edge_list.begin(); e != m_mesh->m_edge_list.end(); ++e)
             {
@@ -364,8 +409,8 @@ void Simulation::setupConstraints()
                 p2 = m_mesh->m_current_positions.block_vector(e->m_v2);
                 SpringConstraint *c = new SpringConstraint(&m_stiffness_stretch, &m_stiffness_stretch_pbd, e->m_v1, e->m_v2, (p1-p2).norm());
                 m_constraints.push_back(c);
+				springConstraintNum++;
             }
-
 			
 			// TODO
             // generate bending constraints. naive solution using cross springs 
@@ -377,6 +422,7 @@ void Simulation::setupConstraints()
 					p2 = m_mesh->m_current_positions.block_vector(X*i+j+2);
 					SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,X*i+j,X*i+j+2,(p1-p2).norm());
 					m_constraints.push_back(c);
+					springConstraintNum++;
 				}
 			}
 
@@ -386,9 +432,12 @@ void Simulation::setupConstraints()
 					p2 = m_mesh->m_current_positions.block_vector(Y*i+j+2);
 					SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,Y*i+j,Y*i+j+2,(p1-p2).norm());
 					m_constraints.push_back(c);
+					springConstraintNum++;
 				}
 			}
 
+			AddAttachmentConstraint(0);
+            AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
         }
         break;
     case MESH_TYPE_TET:

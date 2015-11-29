@@ -588,63 +588,25 @@ void ObjMesh::read_from_file(char* filename)
 	for(int i=0;i<num;i++) Triangles.push_back(i);
 	tree.setPosition(m_pos);
 	tree.createTree(0,&m_positions,&m_indices,Triangles);
-	cout<<tree.xMin<<endl;
-	cout<<tree.xMax<<endl;
-	cout<<tree.yMin<<endl;
-	cout<<tree.yMax<<endl;
-	cout<<tree.zMin<<endl;
-	cout<<tree.zMax<<endl;
-	//std::cout<<"!"<<std::endl;
-	//cout<<m_indices.size()<<endl;
 }
 
 bool ObjMesh::StaticIntersectionTest(const EigenVector3& p, EigenVector3& normal, ScalarType& dist)
 {
     // TODO
-	/*EigenVector3 center = EigenVector3(m_pos[0], m_pos[1], m_pos[2]);
-    EigenVector3 diff = p - center;
-    dist = diff.norm() - m_radius - COLLISION_EPSILON;
-    if (dist < 0)
-    {
-        normal = diff.normalized();
-
-        return true;
-    }
-    else
-    {
-		//dist=0;
-        return false;
-    }*/
 	float minDis=1e7;
 	bool inCollision=false;
 	glm::vec3 pos(p.x(),p.y(),p.z());
 	vector<unsigned short> list;
 	tree.getNearbyTriangles(pos,list);
 	
-	/*if(list.size()>0){
-		cout<<"begin"<<endl;
-		cout<<list[0]<<endl;
-		cout<<pos.x<<","<<pos.y<<","<<pos.z<<endl;
-		glm::vec3 p1,p2,p3;
-		p1=m_positions[m_indices[3*list[0]]];
-		p2=m_positions[m_indices[3*list[0]+1]];
-		p3=m_positions[m_indices[3*list[0]+2]];
-		cout<<p1.x<<","<<p1.y<<","<<p1.z<<endl;
-		cout<<p2.x<<","<<p2.y<<","<<p2.z<<endl;
-		cout<<p3.x<<","<<p3.y<<","<<p3.z<<endl;
-		cout<<"end"<<endl;
-	}*/
 	pos.x-=m_pos[0];pos.y-=m_pos[1];pos.z-=m_pos[2];
 	for(int i=0;i<list.size();i++){
-		//cout<<"@"<<endl;
 		float tmp=getDistance(pos,list[i]);
-		//cout<<tmp<<endl;
 		if(tmp>0&&tmp<minDis&&tmp<0.25){
 			glm::vec3 n=getNormal(list[i]);
 			normal[0]=n[0];normal[1]=n[1];normal[2]=n[2];
 			minDis=tmp;
 			inCollision=true;
-			//cout<<"!"<<endl;
 		}
 	}
 	dist=-minDis;
@@ -659,29 +621,14 @@ glm::vec3 ObjMesh::getNormal(unsigned short TriangleIndex){
 	index3=m_indices[3*TriangleIndex+2];
 	v1=m_positions[index1];v2=m_positions[index2];v3=m_positions[index3];
 	n1=m_normals[index1];n2=m_normals[index2];n3=m_normals[index3];
-	//cout<<v1.x<<","<<v1.y<<","<<v1.z<<endl;
-	//cout<<v2.x<<","<<v2.y<<","<<v2.z<<endl;
-	//cout<<v3.x<<","<<v3.y<<","<<v3.z<<endl;
-	//cout<<3*TriangleIndex+2-m_positions.size()<<endl;
-	//cout<<"#"<<endl;
+	
 	v12=v1-v2;v13=v1-v3;
 	v12=glm::normalize(v12);v13=glm::normalize(v13);
 	crossN=glm::cross(v12,v13);
-
-	
-	//if(glm::length(crossN)>1e5||glm::length(crossN)<1e-5) return glm::vec3(0,1,0);
-	//cout<<"#"<<endl;
-	//cout<<crossN.x<<","<<crossN.y<<","<<crossN.z<<endl;
 	crossN=glm::normalize(crossN);
 	
 	n=(n1+n2+n3);
-	//if(glm::length(n)<1e-5) n=glm::vec3(0,1,0);
-	//cout<<n.x<<","<<n.y<<","<<n.z<<endl;
 	n=glm::normalize(n);
-	//cout<<"#"<<endl;
-	//cout<<n.x<<","<<n.y<<","<<n.z<<endl;
-	//cout<<crossN.x<<","<<crossN.y<<","<<crossN.z<<endl;
-	//cout<<"@"<<endl;
 
 	if(glm::dot(n,crossN)<0) return -crossN;
 	else return crossN;
@@ -691,10 +638,9 @@ float ObjMesh::getDistance(glm::vec3 p,unsigned short TriangleIndex){
 	float dis,k,x;
 	unsigned int index;
 	index=m_indices[3*TriangleIndex];
-	//cout<<"@"<<endl;
-	//cout<<p.x<<","<<p.y<<","<<p.z<<endl;
+	
 	glm::vec3 normal=getNormal(TriangleIndex);
-	//cout<<"!"<<endl;
+	
 	glm::vec3 d=p-m_positions[index];
 	x=-(normal.x*d.x+normal.y*d.y+normal.z*d.z);
 	k=normal.x*normal.x+normal.y*normal.y+normal.z*normal.z;
