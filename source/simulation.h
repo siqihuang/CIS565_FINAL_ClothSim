@@ -46,8 +46,6 @@
 #include <cusparse.h>
 #include <cassert>
 
-
-
 class Mesh;
 class AntTweakBarWrapper;
 
@@ -132,10 +130,10 @@ protected:
     unsigned int m_iterations_per_frame;
 	unsigned int springConstraintNum;
 
-
 	//for implicit method
 	SparseMatrix m_A;
 	int m_nnz;
+
 
 private:
 
@@ -162,8 +160,7 @@ private:
     void factorizeDirectSolverLLT(const SparseMatrix& A, Eigen::SimplicialLLT<SparseMatrix, Eigen::Upper>& lltSolver, char* warning_msg = ""); // factorize matrix A using LLT decomposition
     void factorizeDirectSolverLDLT(const SparseMatrix& A, Eigen::SimplicialLDLT<SparseMatrix, Eigen::Upper>& ldltSolver, char* warning_msg = ""); // factorize matrix A using LDLT decomposition
     void generateRandomVector(const unsigned int size, VectorX& x); // generate random vector varing from [-1 1].
-	
-	//GPU version
+	//GPU
 	void copyDataToGPU();
 	void computeSystemMatrix(); //A = M-dt*dt*K; K is stiffness matrix
 };

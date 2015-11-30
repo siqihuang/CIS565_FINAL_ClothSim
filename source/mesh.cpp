@@ -60,11 +60,16 @@ void Mesh::Draw(const VBO& vbos, bool wire_frame, int show_texture)
 
     // position
     glBindBuffer(GL_ARRAY_BUFFER, vbos.m_vbo);
-    for (unsigned int i = 0; i < size; ++i)
-    {
-        m_positions[i] = glm::vec3(m_current_positions[3*i+0], m_current_positions[3*i+1], m_current_positions[3*i+2]);
-    }
-    glBufferData(GL_ARRAY_BUFFER, 3 * size * sizeof(float), &m_positions[0], GL_DYNAMIC_DRAW);
+	/*if(g_GPU_render){
+		glBufferData(GL_ARRAY_BUFFER, 3 * size * sizeof(float), getPos(), GL_DYNAMIC_DRAW);
+	}
+	else{*/
+	    for (unsigned int i = 0; i < size; ++i)
+		{
+	        m_positions[i] = glm::vec3(m_current_positions[3*i+0], m_current_positions[3*i+1], m_current_positions[3*i+2]);
+		}
+		glBufferData(GL_ARRAY_BUFFER, 3 * size * sizeof(float), &m_positions[0], GL_DYNAMIC_DRAW);
+	//}
 
     // color
     glBindBuffer(GL_ARRAY_BUFFER, vbos.m_cbo);

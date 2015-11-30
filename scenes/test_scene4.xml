@@ -1,0 +1,6 @@
+<scene>
+  <primitives>
+    <plane nx="0.0" ny="1" nz="0.0" value="2"></plane>
+    <obj cx="1" cy="4.0" cz="0" scale="2"></obj>
+  </primitives>
+</scene>

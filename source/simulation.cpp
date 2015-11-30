@@ -68,37 +68,35 @@ void Simulation::GPUUpdate(){
 	float dt = m_h / m_iterations_per_frame;
 	
 	
-	
-	for (unsigned int it = 0; it != m_iterations_per_frame; ++it)
-	{
-		switch (m_integration_method)
-		{
-		case INTEGRATION_EXPLICIT_EULER:
-			integrateExplicitEuler_GPU(dt);
-			break;
-		case INTEGRATION_EXPLICIT_RK2:
-			integrateExplicitRK2_GPU(dt);
-			break;
-		case INTEGRATION_EXPLICIT_RK4:
-			integrateExplicitRK4_GPU(dt);
-			break;
-		case INTEGRATION_IMPLICIT_EULER_BARAFF_WITKIN:
-			integrateImplicitBW_GPU(dt);
-			break;
-		}
-	}
-
-
 	// pbd integration method
 	if (m_integration_method == INTEGRATION_POSITION_BASED_DYNAMICS)
 	{
-		
 		integratePBDOnGPU(m_iterations_per_frame, dt);
-	
 	}
-
-	detectCollisionOnGPU();
-	resolveCollisionOnGPU();
+	else{
+		for (unsigned int it = 0; it != m_iterations_per_frame; ++it)
+		{
+			switch (m_integration_method)
+			{
+			case INTEGRATION_EXPLICIT_EULER:
+				integrateExplicitEuler_GPU(dt);
+				break;
+			case INTEGRATION_EXPLICIT_RK2:
+				integrateExplicitRK2_GPU(dt);
+				break;
+			case INTEGRATION_EXPLICIT_RK4:
+				integrateExplicitRK4_GPU(dt);
+				break;
+			case INTEGRATION_IMPLICIT_EULER_BARAFF_WITKIN:
+				integrateImplicitBW_GPU(dt);
+				break;
+			}
+			if(it%1==0){
+				detectCollisionOnGPU();
+				resolveCollisionOnGPU();
+			}
+		}
+	}
 	dampVelocityOnGPU();
 
 	glm::vec3 *pos;
@@ -121,38 +119,48 @@ void Simulation::CPUUpdate()
 	VectorX& v = m_mesh->m_current_velocities;
 	// substepping timestep for explicit/implicit euler
 	ScalarType dt = m_h / m_iterations_per_frame;
-	for (unsigned int it = 0; it != m_iterations_per_frame; ++it)
-	{
-		// update cloth
-		switch (m_integration_method)
-		{
-		case INTEGRATION_EXPLICIT_EULER:
-			integrateExplicitEuler(x, v, dt);
-			break;
-		case INTEGRATION_EXPLICIT_RK2:
-			integrateExplicitRK2(x, v, dt);
-			break;
-		case INTEGRATION_EXPLICIT_RK4:
-			integrateExplicitRK4(x, v, dt);
-			break;
-		case INTEGRATION_EXPLICIT_SYMPLECTIC:
-			integrateExplicitSymplectic(x, v, dt);
-			break;
-		case INTEGRATION_IMPLICIT_EULER_BARAFF_WITKIN:
-			integrateImplicitBW(x, v, dt);
-			break;
-		}
-	}
+
 	// pbd integration method
 	if (m_integration_method == INTEGRATION_POSITION_BASED_DYNAMICS)
 	{
 		integratePBD(x, v, m_iterations_per_frame);
+		std::vector<CollisionInstance> collisions;
+		detectCollision(x, collisions);
+		resolveCollision(x, v, collisions);
 	}
+	else{
+		for (unsigned int it = 0; it != m_iterations_per_frame; ++it)
+		{
+		// update cloth
+			switch (m_integration_method)
+			{
+			case INTEGRATION_EXPLICIT_EULER:
+				integrateExplicitEuler(x, v, dt);
+				break;
+			case INTEGRATION_EXPLICIT_RK2:
+				integrateExplicitRK2(x, v, dt);
+				break;
+			case INTEGRATION_EXPLICIT_RK4:
+				integrateExplicitRK4(x, v, dt);
+				break;
+			case INTEGRATION_EXPLICIT_SYMPLECTIC:
+				integrateExplicitSymplectic(x, v, dt);
+				break;
+			case INTEGRATION_IMPLICIT_EULER_BARAFF_WITKIN:
+				integrateImplicitBW(x, v, dt);
+				break;
+			}
+			if(it%1==0){
+				std::vector<CollisionInstance> collisions;
+				detectCollision(x, collisions);
+				resolveCollision(x, v, collisions);
+			}
+		}
+	}
+	
 
 	// collision detection and resolution
-	std::vector<CollisionInstance> collisions;
-	detectCollision(x, collisions);
-	resolveCollision(x, v, collisions);
+	
 
     // damping
     dampVelocity();
@@ -171,6 +179,13 @@ ScalarType Simulation::TryToSelectAttachmentConstraint(const EigenVector3& p0, c
     ScalarType ray_point_dist;
     ScalarType min_dist = 100.0;
     AttachmentConstraint* best_candidate = NULL;
+
+	/*glm::vec3 *pos;
+	pos=getPos();
+	int s=m_mesh->m_dim[0]*m_mesh->m_dim[1];
+	for(int i=0;i<s;++i){
+		m_mesh->m_current_positions.block_vector(i)=GLM2Eigen(pos[i]);
+	}*/
 
     bool current_state_on = false;
     for (std::vector<Constraint*>::iterator c = m_constraints.begin(); c != m_constraints.end(); ++c)
@@ -209,6 +224,14 @@ bool Simulation::TryToToggleAttachmentConstraint(const EigenVector3& p0, const E
     ScalarType ray_point_dist;
     ScalarType min_dist = 100.0;
     unsigned int best_candidate = 0;
+
+	/*glm::vec3 *pos;
+	pos=getPos();
+	int s=m_mesh->m_dim[0]*m_mesh->m_dim[1];
+	for(int i=0;i<s;++i){
+		m_mesh->m_current_positions.block_vector(i)=GLM2Eigen(pos[i]);
+	}*/
+
     // first pass: choose nearest point
     for (unsigned int i = 0; i != m_mesh->m_vertices_number; i++)
     {
@@ -259,21 +282,21 @@ bool Simulation::TryToToggleAttachmentConstraint(const EigenVector3& p0, const E
         AddAttachmentConstraint(best_candidate);
     }
 	int size=m_constraints.size()-springConstraintNum;
-	if(size>0){
-		GPUConstraint *Gconstraint=new GPUConstraint[size];
-		for(int i=0;i<size;++i){
-			Gconstraint[i].stiffness=m_constraints[springConstraintNum+i]->Stiffness();
-			Gconstraint[i].stiffnessPBD=m_constraints[springConstraintNum+i]->StiffnessPBD();
-			Gconstraint[i].type=m_constraints[springConstraintNum+i]->type;
+	
+	GPUConstraint *Gconstraint=new GPUConstraint[size];
+	for(int i=0;i<size;++i){
+		Gconstraint[i].stiffness=m_constraints[springConstraintNum+i]->Stiffness();
+		Gconstraint[i].stiffnessPBD=m_constraints[springConstraintNum+i]->StiffnessPBD();
+		Gconstraint[i].type=m_constraints[springConstraintNum+i]->type;
 			
-			AttachmentConstraint *a=(AttachmentConstraint*)m_constraints[springConstraintNum+i];
-			Gconstraint[i].fix_index=a->m_p0;
-			EigenVector3 v=a->GetFixedPoint();
-			Gconstraint[i].fixedPoint=glm::vec3(v.x(),v.y(),v.z());
-			Gconstraint[i].active=true;
-		}
-		updateAttachmentConstraintOnGPU(Gconstraint,size);
+		AttachmentConstraint *a=(AttachmentConstraint*)m_constraints[springConstraintNum+i];
+		Gconstraint[i].fix_index=a->m_p0;
+		EigenVector3 v=a->GetFixedPoint();
+		Gconstraint[i].fixedPoint=glm::vec3(v.x(),v.y(),v.z());
+		Gconstraint[i].active=true;
 	}
+	updateAttachmentConstraintOnGPU(Gconstraint,size);
+	
     return true;
 }
 
@@ -294,7 +317,16 @@ void Simulation::UnselectAttachmentConstraint()
 
 void Simulation::AddAttachmentConstraint(unsigned int vertex_index)
 {
-    AttachmentConstraint* ac = new AttachmentConstraint(&m_stiffness_attachment, &m_stiffness_attachment_pbd, vertex_index, m_mesh->m_current_positions.block_vector(vertex_index));
+    AttachmentConstraint* ac;
+	EigenVector3 v;
+	/*if(!g_GPU_render)
+		v=m_mesh->m_current_positions.block_vector(vertex_index);
+	else{
+		glm::vec3 vt=getPos()[vertex_index];
+		v=GLM2Eigen(vt);
+	}*/
+	v=m_mesh->m_current_positions.block_vector(vertex_index);
+	ac= new AttachmentConstraint(&m_stiffness_attachment, &m_stiffness_attachment_pbd, vertex_index, v);
     m_constraints.push_back(ac);
 }
 
@@ -355,7 +387,6 @@ void Simulation::copyDataToGPU(){
 		}
 		else if(m_scene->m_primitives[i]->m_type==OBJMESH){
 			Gprimitive[i].type=3;
-			std::cout<<"1"<<std::endl;
 			ObjMesh *o=(ObjMesh*)m_scene->m_primitives[i];
 			Gprimitive[i].tree=initTree(&(o->tree));
 			glm::vec3 *dev_objVertex,*dev_objNormal,*objVertex,*objNormal;
@@ -562,31 +593,6 @@ void Simulation::detectCollision(const VectorX& x, std::vector<CollisionInstance
     }
 }
 
-/*void Simulation::detectCollision(const VectorX& x,std::vector<CollisionInstance>& collisions)
-{
-    // Naive implementation of collision detection
-	collisions.clear();
-    
-	glm::vec3 *xi=new glm::vec3[m_mesh->m_vertices_number];
-	glm::vec3 *normal=new glm::vec3[m_mesh->m_vertices_number];
-	float *dist=new float[m_mesh->m_vertices_number];
-	for(int i=0;i<m_mesh->m_vertices_number;++i){
-		EigenVector3 tmp = x.block_vector(i);
-		xi[i]=glm::vec3(tmp.x(),tmp.y(),tmp.z());
-	}
-	
-	bool* result=collisionDetection(xi,normal,dist,m_mesh->m_vertices_number);
-	for(unsigned int i=0;i<m_mesh->m_vertices_number;++i){
-		if(result[i]){ 
-			EigenVector3 n;
-			n.x()=normal[i].x;n.y()=normal[i].y;n.z()=normal[i].z;
-			collisions.push_back(CollisionInstance(i,n,dist[i]));
-		}
-	}
-	delete(xi);
-	delete(result);
-}*/
-
 void Simulation::resolveCollision(VectorX&x, VectorX& v, std::vector<CollisionInstance>& collisions)
 {
 	for (std::vector<CollisionInstance>::iterator it = collisions.begin(); it!= collisions.end(); ++it)
@@ -724,17 +730,35 @@ void Simulation::integrateExplicitSymplectic(VectorX& x, VectorX& v, ScalarType 
 
 void Simulation::integrateImplicitBW(VectorX& x, VectorX& v, ScalarType dt)
 {
-	// TODO:
-	// v_next = v_current + dt * a_next
-	// x_next = x_current + dt * v_next
-	// [M - dt^2 K] * v_next = M * v_current + dt * f(x_current);
-	// A * v_next = b;
+	SparseMatrix M = m_mesh->m_mass_matrix;
+	SparseMatrix K;
+	computeStiffnessMatrix(x,K);
+	//K=-K; //if there is bug it may happen here!
+
+	VectorX f_cur;
+	computeForces(x, f_cur);
+
+	SparseMatrix A;
+	// fill A
+	A = M-dt*dt*K;
+	VectorX b,v_next;
+	// fill b
+	b = M * v + dt * f_cur;
+	// solve Ax = b
+	Eigen::SimplicialLLT<SparseMatrix, Eigen::Upper> solver;  //sparse matrix solver
+	
+	factorizeDirectSolverLLT(A,solver);
+	
+	v_next = solver.solve(b);
+
+	v = v_next;
+	x = x + dt * v_next;
 }
 
 void Simulation::integratePBD(VectorX& x, VectorX& v, unsigned int ns)
 {
 	// TODO:
-	/*v = v + m_h*m_mesh->m_inv_mass_matrix*m_external_force;
+	v = v + m_h*m_mesh->m_inv_mass_matrix*m_external_force;
 	//tmp update the p
 	VectorX p = x;
 	p = x + m_h*v;
@@ -756,12 +780,16 @@ void Simulation::integratePBD(VectorX& x, VectorX& v, unsigned int ns)
 				m_constraints[i]->PBDProject(p, m_mesh->m_inv_mass_matrix, k);
 			}
 		}
-		
+		//std::vector<CollisionInstance> collisions;
+		//detectCollision(x, collisions);
+		//resolveCollision(x, v, collisions);
 	}
 
 	//update the v and x
 	v = (p - x)/m_h;
-	x = p;*/
+	x = p;
+	
+	/*
 	float dt = m_h / m_iterations_per_frame;
 	float dm=m_mesh->m_total_mass/(m_mesh->m_dim[0]*m_mesh->m_dim[1]);
 	//float dm=m_mesh->m_total_mass/ns;
@@ -781,7 +809,7 @@ void Simulation::integratePBD(VectorX& x, VectorX& v, unsigned int ns)
    // m_constraints.push_back(c);
 
 	v=(p-x)/dt;
-	x=p;
+	x=p;*/
 }
 
 #pragma region implicit/explicit euler

@@ -47,20 +47,16 @@ static glm::vec3 * dev_pos_temp1,*pos_temp1;
 static glm::vec3 * dev_vel_temp1,*vel_temp1;
 static glm::vec3 * dev_external_force;
 
-<<<<<<< HEAD
 static float* dev_vel_implicit;
-//static float* dev_pos_implicit;
 static float* dev_b_implicit;
 static float* dev_force_implicit;
-
 static int* dev_coo_Rows;
 static int* dev_csr_Rows;
 static int* dev_Cols;
 static float* dev_Val;
 static int dev_nnz;
-=======
+
 static int springConstraintNum;
->>>>>>> origin/master
 
 /*
 helper function for matrix operation
@@ -131,6 +127,7 @@ __global__ void vector_minus_vector_mul(glm::vec3 *v1,glm::vec3 *v2,glm::vec3 *v
 	}
 }
 
+// implicit method Ax=b compute the rhs
 __global__ void compute_b(float mass, float dt, float* _dev_v, float* _dev_force, float* b,int N)
 {
 	int index = blockDim.x*blockIdx.x + threadIdx.x;
@@ -160,8 +157,6 @@ __global__ void inv_convert_2_implicit_data(float* data_in, glm::vec3* data_out,
 	}
 }
 
-
-
 /*
 helper function for matrix operation
 */
@@ -171,7 +166,7 @@ Intersection Test
 */
 __device__ bool CubeIntersectionTest(glm::vec3 &p, glm::vec3 &normal, glm::vec3 dim,glm::vec3 center,float &dist)
 {
-	float COLLISION_EPSILON=2e-2;
+	float COLLISION_EPSILON=1e-1;
     glm::vec3 diff = p - center;
 	float xcollide,ycollide,zcollide;
 	xcollide=(fabs(diff.x)-dim.x-COLLISION_EPSILON);
@@ -218,7 +213,7 @@ __device__ bool CubeIntersectionTest(glm::vec3 &p, glm::vec3 &normal, glm::vec3 
 
 __device__ bool SphereIntersectionTest(glm::vec3 &p, glm::vec3 &normal,float radius, glm::vec3 center,float &dist)
 {
-	float COLLISION_EPSILON=2e-2;
+	float COLLISION_EPSILON=1e-1;
     glm::vec3 diff = p - center;
 	dist = glm::length(diff) - radius - COLLISION_EPSILON;
     if (dist < 0)
@@ -234,7 +229,7 @@ __device__ bool SphereIntersectionTest(glm::vec3 &p, glm::vec3 &normal,float rad
 
 __device__ bool PlaneIntersectionTest(glm::vec3 &p, glm::vec3 &normal, glm::vec3 pNormal, glm::vec3 center,float &dist)
 {
-	float COLLISION_EPSILON=2e-2;
+	float COLLISION_EPSILON=1e-1;
     float height = center[1];
     dist = p.y - height - COLLISION_EPSILON;
     normal=pNormal;
@@ -326,7 +321,7 @@ __device__ bool ObjectIntersectionTest(glm::vec3 & p, glm::vec3 & normal, kdtree
 	for(int i=0;i<180;i++){
 		if(list[i]==-1) break;
 		float tmp=getDistanceOnGPU(obj_vertex,obj_normal,obj_indices,pos,list[i]);
-		if(tmp>0&&tmp<minDis&&tmp<0.1){
+		if(tmp>0&&tmp<minDis&&tmp<0.25){
 			glm::vec3 n=getNormalOnGPU(obj_vertex,obj_normal,obj_indices,list[i]);
 			normal=n;
 			minDis=tmp;
@@ -501,7 +496,7 @@ void initData(){
 	cudaMalloc(&dev_force,dimension*sizeof(glm::vec3));
 	cudaMalloc(&dev_external_force, dimension*sizeof(glm::vec3));
 	cudaMalloc(&dev_pbd,dimension*sizeof(glm::vec3));
-	cudaMalloc(&dev_constraint,(constraintNum+20)*sizeof(GPUConstraint));//give 20 more space for additional attachment constraint
+	cudaMalloc(&dev_constraint,(constraintNum+100)*sizeof(GPUConstraint));//give 100 more space for additional attachment constraint
 	cudaMalloc(&dev_primitive,primitiveNum*sizeof(GPUPrimitive));
 	cudaMalloc(&dev_collisionNormal,dimension*sizeof(glm::vec3));
 	cudaMalloc(&dev_dist,dimension*sizeof(float));
@@ -520,16 +515,13 @@ void initData(){
 	cudaMalloc(&dev_vel_implicit, 3 * dimension*sizeof(float));
 	cudaMalloc(&dev_force_implicit, 3 * dimension*sizeof(float));
 	cudaMalloc(&dev_b_implicit, 3 * dimension*sizeof(float));
-	
+
 	cudaMemcpy(dev_pos,pos,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_vel,vel,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_constraint,constraint,constraintNum*sizeof(GPUConstraint),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_primitive,primitive,primitiveNum*sizeof(GPUPrimitive),cudaMemcpyHostToDevice);
 	cudaMemset(dev_force,0,dimension*sizeof(glm::vec3));
 	cudaMemset(dev_external_force,0,dimension*sizeof(glm::vec3));
-
-
-	
 }
 
 void deleteData(){
@@ -666,13 +658,17 @@ void dampVelocityOnGPU()
 
 void integratePBDOnGPU(int ns,float dt)
 {
-	vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_vel,dev_external_force,dev_vel,dt*ns*1.0/mass,dimension);
-	vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_pos,dev_vel,dev_pbd,dt*ns,dimension);
-	//for(int i=0;i<ns;++i){
+	for(int i=0;i<ns;++i){
+		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_vel,dev_external_force,dev_vel,dt*1.0/mass,dimension);
+		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_pos,dev_vel,dev_pbd,dt,dimension);
+
 		PBDProjectKernel<<<(constraintNum+255)/256,256>>>(dev_constraint,dev_pbd,constraintNum,ns);
-	//}
-	vector_minus_vector_mul<<<(dimension+255)/256,256>>>(dev_pbd,dev_pos,dev_vel,1.0/(ns*dt),dimension);
-	vector_copy_vector<<<(dimension+255)/256,256>>>(dev_pos,dev_pbd,dimension);
+	
+		vector_minus_vector_mul<<<(dimension+255)/256,256>>>(dev_pbd,dev_pos,dev_vel,1.0/(dt),dimension);
+		vector_copy_vector<<<(dimension+255)/256,256>>>(dev_pos,dev_pbd,dimension);
+		detectCollisionOnGPU();
+		resolveCollisionOnGPU();
+	}
 }
 
 //====================	integration	====================
@@ -808,7 +804,6 @@ void integrateExplicitRK4_GPU(float dt)
 	cudaMemcpy(pos, dev_pos, dimension*sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 }
 
-
 void integrateImplicitBW_GPU(float dt)
 {
 	cudaMemset(dev_force, 0, dimension*sizeof(glm::vec3));
@@ -892,55 +887,11 @@ kdtree *initTree(kdtree *root){
 }
 
 void updateAttachmentConstraintOnGPU(GPUConstraint *Gconstraint,int n){
-	cudaMemset(dev_constraint+springConstraintNum,0,20*sizeof(GPUConstraint));
-	n=min(20,n);//no more than 20 Attachment Constraint
+	cudaMemset(dev_constraint+springConstraintNum,0,100*sizeof(GPUConstraint));
+	n=min(100,n);//no more than 100 Attachment Constraint
 	cudaMemcpy(dev_constraint+springConstraintNum,Gconstraint,n*sizeof(GPUConstraint),cudaMemcpyHostToDevice);
 	constraintNum=springConstraintNum+n;
 }
-
-glm::vec3 *getPos(){
-	return pos;
-}
-
-glm::vec3 *getVel(){
-	return vel;
-}
-
-/*
-test cuda core function
-*/
-__global__ void test(int *a,int *b,int *c,int N){
-	int index=blockIdx.x*blockDim.x+threadIdx.x;
-	if(index<N){
-		c[index]=a[index]+b[index];
-	}
-}
-
-/*
-test function for cuda setup
-*/
-void testCuda(){
-	int *a,*b,*c;
-	int *dev_a,*dev_b,*dev_c;
-	a=new int[10];
-	b=new int[10];
-	c=new int[10];
-	for(int i=0;i<10;++i){
-		a[i]=i;
-		b[i]=10-i;
-	}
-	cudaMalloc(&dev_a,10*sizeof(int));
-	cudaMalloc(&dev_b,10*sizeof(int));
-	cudaMalloc(&dev_c,10*sizeof(int));
-	cudaMemcpy(dev_a,a,10*sizeof(int),cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_b,b,10*sizeof(int),cudaMemcpyHostToDevice);
-	test<<<1,256>>>(dev_a,dev_b,dev_c,10);
-	cudaMemcpy(c,dev_c,10*sizeof(int),cudaMemcpyDeviceToHost);
-	for(int i=0;i<10;++i){
-		std::cout<<a[i]<<","<<b[i]<<","<<c[i]<<std::endl;
-	}
-}
-
 
 void convertSystemMatrix(std::vector<int> &host_Rows, std::vector<int> &host_Cols, std::vector<float> &host_Val)
 {
@@ -1012,4 +963,47 @@ void convertSystemMatrix(std::vector<int> &host_Rows, std::vector<int> &host_Col
 
 	cusparse_status = cusparseDestroy(cusparse_handle);
 	std::cout << "status destroy cusparse handle: " << cusparse_status << std::endl;
+}
+
+glm::vec3 *getPos(){
+	return pos;
+}
+
+glm::vec3 *getVel(){
+	return vel;
+}
+
+/*
+test cuda core function
+*/
+__global__ void test(int *a,int *b,int *c,int N){
+	int index=blockIdx.x*blockDim.x+threadIdx.x;
+	if(index<N){
+		c[index]=a[index]+b[index];
+	}
+}
+
+/*
+test function for cuda setup
+*/
+void testCuda(){
+	int *a,*b,*c;
+	int *dev_a,*dev_b,*dev_c;
+	a=new int[10];
+	b=new int[10];
+	c=new int[10];
+	for(int i=0;i<10;++i){
+		a[i]=i;
+		b[i]=10-i;
+	}
+	cudaMalloc(&dev_a,10*sizeof(int));
+	cudaMalloc(&dev_b,10*sizeof(int));
+	cudaMalloc(&dev_c,10*sizeof(int));
+	cudaMemcpy(dev_a,a,10*sizeof(int),cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_b,b,10*sizeof(int),cudaMemcpyHostToDevice);
+	test<<<1,256>>>(dev_a,dev_b,dev_c,10);
+	cudaMemcpy(c,dev_c,10*sizeof(int),cudaMemcpyDeviceToHost);
+	for(int i=0;i<10;++i){
+		std::cout<<a[i]<<","<<b[i]<<","<<c[i]<<std::endl;
+	}
 }

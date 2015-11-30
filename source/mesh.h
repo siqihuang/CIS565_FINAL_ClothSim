@@ -40,11 +40,14 @@
 #include "simulation.h"
 #include "camera.h"
 #include "primitive.h"
+#include "kernel.h"
 
 //forward declarations
 class Camera;
 class AntTweakBarWrapper;
 class Simulation;
+
+extern bool g_GPU_render;
 
 typedef enum
 {

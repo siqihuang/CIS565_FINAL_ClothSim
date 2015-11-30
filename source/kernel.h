@@ -1,5 +1,5 @@
 #pragma once
-#ifndef _KERNEL_
+#ifndef _KERENL_
 #define _KERNEL_
 #include <cuda.h>
 #include<thrust/scan.h>
@@ -66,21 +66,12 @@ void updateAttachmentConstraintOnGPU(GPUConstraint *Gconstraint,int n);
 void integrateExplicitEuler_GPU(float dt);
 void integrateExplicitRK2_GPU(float dt);
 void integrateExplicitRK4_GPU(float dt);
-
-<<<<<<< HEAD
 void integrateImplicitBW_GPU(float dt);
 void convertSystemMatrix(std::vector<int> & host_Rows, std::vector<int> & host_Cols, std::vector<float> & host_Val);
-=======
+
 kdtree *initTree(kdtree *root);
->>>>>>> origin/master
 
 glm::vec3 *getPos();
 glm::vec3 *getVel();
-
-
-
-
-
-
 
 #endif
