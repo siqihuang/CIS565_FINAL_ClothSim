@@ -36,3 +36,25 @@ Next Step:
 
 Presentation Slides Link: (https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit)
 
+### MileStone2 (11/30/2015)
+
+Progress:
+
+1. finish the implementation of implicit method using cuSolver
+2. finish the AABB tree collision detection and resolve using imported obj file
+3. finish damp velocity computation on GPU
+
+Next Step:
+
+1. implement the tearing-apart effect
+2. optimize the collision detection
+3. detailed performance analysis
+4. improving the shader
+
+Presentation Slides Link: (https://docs.google.com/presentation/d/1w5eOXz4IK8DZFQqKDkIC5HjKT8hTvjFJlC4LQjbyFWg/edit#slide=id.p)
+
+
+
+
+
+
