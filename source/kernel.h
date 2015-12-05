@@ -16,11 +16,14 @@
 #include <cassert>
 
 struct GPUConstraint{
-	int type;//0 for Attachment constraint, 1 for Spring constraint
+	int type;//0 for Attachment constraint, 1 for Spring constraint, 2 for bending constraint
 	float stiffness;
 	float stiffnessPBD;
 	int p1;
 	int p2;
+	int id;
+	int triangleId1;
+	int triangleId2;
 	int fix_index;
 	float rest_length;
 	glm::vec3 fixedPoint;
@@ -52,7 +55,7 @@ m_h
 void testCuda();
 void collisionResolving();
 void copyData(GPUConstraint *GConstraint,GPUPrimitive *Gprimitive,glm::vec3 *pos,glm::vec3 *vel,int height,int width,
-			  int constraintNum,int springConstraintNum,int primitiveNum,float mass,float restitution_coefficient,float damping_coefficient);
+			  int constraintNum,int springConstraintNum,int primitiveNum,int triangleNum,float mass,float restitution_coefficient,float damping_coefficient);
 void calculateExternalForceoOnGPU();
 void calculateExternalForceoOnGPU1();
 void integratePBDOnGPU(int ns,float dt);
@@ -73,5 +76,7 @@ kdtree *initTree(kdtree *root);
 
 glm::vec3 *getPos();
 glm::vec3 *getVel();
-
+bool isTorn();
+int *getTornId();
+void resetTornFlag();
 #endif

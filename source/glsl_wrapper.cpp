@@ -69,6 +69,7 @@ void RenderWrapper::InitShader(const char* vert_path, const char* frag_path)
     glBindAttribLocation(m_shaderprog_handle, 1, "v_color");
     glBindAttribLocation(m_shaderprog_handle, 2, "v_normal");
     glBindAttribLocation(m_shaderprog_handle, 3, "v_texcoord");
+	//glBindAttribLocation(m_shaderprog_handle, 4, "c_position");
 
     // attach shader to the shader program
     glAttachShader(m_shaderprog_handle, m_vert_handle);
@@ -80,11 +81,13 @@ void RenderWrapper::InitShader(const char* vert_path, const char* frag_path)
         printLinkInfoLog(m_shaderprog_handle);
 
     // query uniform locations from openGL.
+	
     m_vbo_handle.m_uniform_modelview = glGetUniformLocation(m_shaderprog_handle, "u_modelviewMatrix");
     m_vbo_handle.m_uniform_projection = glGetUniformLocation(m_shaderprog_handle, "u_projMatrix");
     m_vbo_handle.m_uniform_transformation = glGetUniformLocation(m_shaderprog_handle, "u_transformMatrix");
     m_vbo_handle.m_uniform_enable_texture = glGetUniformLocation(m_shaderprog_handle, "u_choose_tex");
     m_vbo_handle.m_uniform_texture_sampler = glGetUniformLocation(m_shaderprog_handle, "u_sampler1");
+	m_vbo_handle.m_camera_position = glGetUniformLocation(m_shaderprog_handle, "u_camera_position");
 
     // activate the shader program.
     glUseProgram(m_shaderprog_handle);

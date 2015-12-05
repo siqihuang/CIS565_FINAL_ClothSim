@@ -72,6 +72,7 @@ struct VBO
     GLuint m_uniform_transformation;
     GLuint m_uniform_enable_texture;
     GLuint m_uniform_texture_sampler;
+	GLuint m_camera_position;
 };
 
 #endif

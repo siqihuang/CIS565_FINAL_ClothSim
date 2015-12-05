@@ -161,7 +161,7 @@ private:
     void factorizeDirectSolverLDLT(const SparseMatrix& A, Eigen::SimplicialLDLT<SparseMatrix, Eigen::Upper>& ldltSolver, char* warning_msg = ""); // factorize matrix A using LDLT decomposition
     void generateRandomVector(const unsigned int size, VectorX& x); // generate random vector varing from [-1 1].
 	//GPU
-	void copyDataToGPU();
+	void copyDataToGPU(vector<pair<int,int>> v);
 	void computeSystemMatrix(); //A = M-dt*dt*K; K is stiffness matrix
 };
 

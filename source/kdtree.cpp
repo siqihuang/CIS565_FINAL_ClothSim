@@ -173,7 +173,7 @@ void kdtree::findBoundary(){
 	if(xhalf<0.01) xhalf=0.01;
 	if(yhalf<0.01) yhalf=0.01;
 	if(zhalf<0.01) zhalf=0.01;
-	int n=1;
+	int n=1.5;
 	//cout<<xMax<<","<<xMin<<endl;
 	xMax=xCenter+xhalf*n;xMin=xCenter-xhalf*n;
 	yMax=yCenter+yhalf*n;yMin=yCenter-yhalf*n;

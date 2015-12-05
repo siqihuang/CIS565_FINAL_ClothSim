@@ -190,7 +190,7 @@ void display() {
 
     //Always and only do this at the start of a frame, it wipes the slate clean
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    //glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     // aim camera
     g_renderer->SetCameraModelview(g_camera->GetViewMatrix());

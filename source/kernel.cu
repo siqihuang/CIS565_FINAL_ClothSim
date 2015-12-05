@@ -30,9 +30,11 @@ static glm::vec3 *dev_collisionNormal;
 static glm::vec3 *angular_momentum,*dev_angular_momentum;
 static glm::mat3x3 *inertia,*dev_inertia;
 static float *dev_dist;
-static int height,width,dimension,constraintNum,primitiveNum;
+static int height,width,dimension,constraintNum,primitiveNum,triangleNum;
 static float mass;
 static float restitution_coefficient,damping_coefficient;
+static int torn,*dev_torn;
+static int *torn_id,*dev_torn_id;
 
 static glm::vec3 * dev_k1_x;
 static glm::vec3 * dev_k1_v;
@@ -321,7 +323,7 @@ __device__ bool ObjectIntersectionTest(glm::vec3 & p, glm::vec3 & normal, kdtree
 	for(int i=0;i<180;i++){
 		if(list[i]==-1) break;
 		float tmp=getDistanceOnGPU(obj_vertex,obj_normal,obj_indices,pos,list[i]);
-		if(tmp>0&&tmp<minDis&&tmp<0.25){
+		if(tmp>0&&tmp<minDis&&tmp<0.1){
 			glm::vec3 n=getNormalOnGPU(obj_vertex,obj_normal,obj_indices,list[i]);
 			normal=n;
 			minDis=tmp;
@@ -397,7 +399,7 @@ __global__ void addGravityOnGPU(glm::vec3 *force,float mass,int N){
 	}
 }
 
-__global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int N,int ns){
+__global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int *torn,int *torn_id,int N,int ns){
 	int index=blockDim.x*blockIdx.x+threadIdx.x;
 	if(index<N){
 		if(constraint[index].type==0&&constraint[index].active){//Attachment Constraint
@@ -410,7 +412,7 @@ __global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int N,in
 			atomicAdd(&p[constraint[index].fix_index].z,k_prime*dp.z);
 			//p[constraint[index].fix_index]+=k_prime*dp;
 		}
-		else if(constraint[index].type==1){//Spring Constraint
+		else if(constraint[index].type==1&&constraint[index].active){//Spring Constraint
 			float k_prime=1.0-pow(1.0-constraint[index].stiffnessPBD,1.0/ns);
 			float rest_length=constraint[index].rest_length;
 			glm::vec3 v1=p[constraint[index].p1];
@@ -425,6 +427,13 @@ __global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int N,in
 			atomicAdd(&p[constraint[index].p2].x,0.5f*k_prime*dp.x);
 			atomicAdd(&p[constraint[index].p2].y,0.5f*k_prime*dp.y);
 			atomicAdd(&p[constraint[index].p2].z,0.5f*k_prime*dp.z);
+
+			if(current_length>1.2*rest_length){ 
+				torn[0]=1;
+				constraint[index].active=false;
+				torn_id[constraint[index].triangleId1]=1;
+				torn_id[constraint[index].triangleId2]=1;
+			}
 			//p[constraint[index].p1]-=0.5f*k_prime*dp;
 			//p[constraint[index].p2]+=0.5f*k_prime*dp;
 		}
@@ -516,12 +525,17 @@ void initData(){
 	cudaMalloc(&dev_force_implicit, 3 * dimension*sizeof(float));
 	cudaMalloc(&dev_b_implicit, 3 * dimension*sizeof(float));
 
+	cudaMalloc(&dev_torn_id,triangleNum*sizeof(int));
+	cudaMalloc(&dev_torn,sizeof(int));
+
 	cudaMemcpy(dev_pos,pos,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_vel,vel,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_constraint,constraint,constraintNum*sizeof(GPUConstraint),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_primitive,primitive,primitiveNum*sizeof(GPUPrimitive),cudaMemcpyHostToDevice);
 	cudaMemset(dev_force,0,dimension*sizeof(glm::vec3));
 	cudaMemset(dev_external_force,0,dimension*sizeof(glm::vec3));
+	cudaMemset(dev_torn_id,0,triangleNum*sizeof(int));
+	cudaMemset(dev_torn,0,sizeof(int));
 }
 
 void deleteData(){
@@ -549,6 +563,9 @@ void deleteData(){
 	cudaFree(dev_pos_temp1);
 	cudaFree(dev_vel_temp1);
 
+	cudaFree(dev_torn_id);
+	cudaFree(dev_torn);
+
 	delete(force);
 	delete(pos);
 	delete(vel);
@@ -556,10 +573,11 @@ void deleteData(){
 	delete(vel_temp1);
 	delete(angular_momentum);
 	delete(inertia);
+	delete(torn_id);
 }
 
 void copyData(GPUConstraint *GConstraint,GPUPrimitive *GPrimitive,glm::vec3 *Gpos,glm::vec3 *Gvel,int Gheight,int Gwidth
-			  ,int GconstraintNum,int GspringConstraintNum,int GprimitiveNum,float Gmass,float Grestitution_coefficient,float Gdamping_coefficient){
+			  ,int GconstraintNum,int GspringConstraintNum,int GprimitiveNum,int GtriangleNum,float Gmass,float Grestitution_coefficient,float Gdamping_coefficient){
 	constraint=GConstraint;
 	primitive=GPrimitive;
 	height=Gheight;
@@ -568,6 +586,7 @@ void copyData(GPUConstraint *GConstraint,GPUPrimitive *GPrimitive,glm::vec3 *Gpo
 	constraintNum=GconstraintNum;
 	springConstraintNum=GspringConstraintNum;
 	primitiveNum=GprimitiveNum;
+	triangleNum=GtriangleNum;
 	mass=Gmass;
 	restitution_coefficient=Grestitution_coefficient;
 	damping_coefficient=Gdamping_coefficient;
@@ -578,6 +597,7 @@ void copyData(GPUConstraint *GConstraint,GPUPrimitive *GPrimitive,glm::vec3 *Gpo
 	vel_temp1=new glm::vec3[height*width];
 	angular_momentum=new glm::vec3[height*width];
 	inertia=new glm::mat3x3[height*width];
+	torn_id=new int[triangleNum];
 	for(int i=0;i<height*width;++i){
 		force[i]=glm::vec3(0);
 		pos[i]=Gpos[i];
@@ -662,7 +682,7 @@ void integratePBDOnGPU(int ns,float dt)
 		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_vel,dev_external_force,dev_vel,dt*1.0/mass,dimension);
 		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_pos,dev_vel,dev_pbd,dt,dimension);
 
-		PBDProjectKernel<<<(constraintNum+255)/256,256>>>(dev_constraint,dev_pbd,constraintNum,ns);
+		PBDProjectKernel<<<(constraintNum+255)/256,256>>>(dev_constraint,dev_pbd,dev_torn,dev_torn_id,constraintNum,ns);
 	
 		vector_minus_vector_mul<<<(dimension+255)/256,256>>>(dev_pbd,dev_pos,dev_vel,1.0/(dt),dimension);
 		vector_copy_vector<<<(dimension+255)/256,256>>>(dev_pos,dev_pbd,dimension);
@@ -971,6 +991,25 @@ glm::vec3 *getPos(){
 
 glm::vec3 *getVel(){
 	return vel;
+}
+
+bool isTorn(){
+	cudaMemcpy(&torn,dev_torn,sizeof(int),cudaMemcpyDeviceToHost);
+	if(torn==1){ 
+		cudaMemset(dev_torn,0,sizeof(int));
+		return true;
+	}
+	return false;
+}
+
+int *getTornId(){
+	cudaMemcpy(torn_id,dev_torn_id,triangleNum*sizeof(int),cudaMemcpyDeviceToHost);
+	return torn_id;
+}
+
+void resetTornFlag(){
+	torn=0;
+	cudaMemset(dev_torn,0,sizeof(int));
 }
 
 /*

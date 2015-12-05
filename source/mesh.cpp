@@ -81,6 +81,25 @@ void Mesh::Draw(const VBO& vbos, bool wire_frame, int show_texture)
     glBindBuffer(GL_ARRAY_BUFFER, vbos.m_tbo);
     glBufferData(GL_ARRAY_BUFFER, 2 * size * sizeof(float), &m_texcoords[0], GL_STATIC_DRAW);
 
+	if(isTorn()){
+		element_num=0;
+		cout<<"torn"<<endl;
+		int *id=getTornId();
+		for(int i=0;i<m_triangle_list_copy.size()/3;++i){
+			if(id[i]==0){
+				m_triangle_list[3*element_num]=m_triangle_list_copy[3*i];
+				m_triangle_list[3*element_num+1]=m_triangle_list_copy[3*i+1];
+				m_triangle_list[3*element_num+2]=m_triangle_list_copy[3*i+2];
+				element_num++;
+			}
+		}
+		element_num*=3;
+		triangle_num=element_num;
+	}
+	else{
+		element_num=triangle_num;
+	}
+
     // indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbos.m_ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_num * sizeof(unsigned int), &m_triangle_list[0], GL_STATIC_DRAW);
@@ -101,6 +120,8 @@ void Mesh::Draw(const VBO& vbos, bool wire_frame, int show_texture)
 
     glBindBuffer(GL_ARRAY_BUFFER, vbos.m_tbo);
     glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glUniform3fv(vbos.m_camera_position,1,&(g_camera->GetCameraPosition()[0]));
 
     glm::mat4 identity = glm::mat4(); // identity matrix
     glUniformMatrix4fv(vbos.m_uniform_transformation, 1, false, &identity[0][0]);
@@ -281,6 +302,10 @@ void ClothMesh::generateTriangleList()
         column_flip = !column_flip;
         row_flip = false;
     }
+	for(int i=0;i<m_triangle_list.size();++i){
+		m_triangle_list_copy.push_back(m_triangle_list[i]);
+	}
+	triangle_num=m_triangle_list.size();
 }
 
 void ClothMesh::generateEdgeList()

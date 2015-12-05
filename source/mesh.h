@@ -48,6 +48,7 @@ class AntTweakBarWrapper;
 class Simulation;
 
 extern bool g_GPU_render;
+extern Camera* g_camera;
 
 typedef enum
 {
@@ -106,7 +107,9 @@ protected:
     std::vector<glm::vec3> m_normals;
     std::vector<glm::vec3> m_colors;
     std::vector<glm::vec2> m_texcoords;
-    std::vector<unsigned int> m_triangle_list;
+    std::vector<unsigned int> m_triangle_list,m_triangle_list_copy;
+
+	int triangle_num;
 
     // for all
     ScalarType m_total_mass;
