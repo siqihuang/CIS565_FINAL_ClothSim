@@ -74,6 +74,8 @@ bool g_GPU_render = true;
 bool g_show_wireframe = false;
 bool g_show_texture = false;
 bool g_texture_load_succeed = false;
+bool g_cloth_tear = false;
+bool g_object_move = false;
 
 //----------Mouse Control--------------------//
 int g_mouse_old_x, g_mouse_old_y;

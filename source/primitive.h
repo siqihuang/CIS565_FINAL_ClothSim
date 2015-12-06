@@ -74,7 +74,7 @@ public:
 protected:
     virtual void init_visualization() {}
 public:
-    glm::vec3 m_pos;
+    glm::vec3 m_pos,m_ini_pos;
     glm::vec3 m_previous_pos;
     glm::vec3 m_vel;
     bool m_has_vel;

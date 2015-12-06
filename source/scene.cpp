@@ -148,6 +148,7 @@ bool XMLSceneVisitor::VisitEnter(const TiXmlElement& element, const TiXmlAttribu
         normal = glm::normalize(normal);
 
         m_current = new Plane(normal, value);
+		m_current->m_ini_pos=m_current->m_pos;
         return true;
     }
     else if (element.ValueStr() == "sphere")
@@ -157,14 +158,19 @@ bool XMLSceneVisitor::VisitEnter(const TiXmlElement& element, const TiXmlAttribu
         assert(m_current == NULL);
 
         double cx(0.0), cy(1.0), cz(0.0), radius(0.0);
+		double vx,vy,vz;
 
         element.Attribute("cx", &cx);
         element.Attribute("cy", &cy);
         element.Attribute("cz", &cz);
+		element.Attribute("vx", &vx);
+		element.Attribute("vy", &vy);
+		element.Attribute("vz", &vz);
         element.Attribute("radius", &radius);
 
         glm::vec3 center(cx, cy, cz);
-        m_current = new Sphere(center, radius);
+        m_current = new Sphere(center, glm::vec3(vx,vy,vz),radius);
+		m_current->m_ini_pos=m_current->m_pos;
         return true;
     }
     else if (element.ValueStr() == "cube")
@@ -185,6 +191,7 @@ bool XMLSceneVisitor::VisitEnter(const TiXmlElement& element, const TiXmlAttribu
         glm::vec3 center(cx, cy, cz);
         glm::vec3 hf_dims(hx, hy, hz);
         m_current = new Cube(center, hf_dims);
+		m_current->m_ini_pos=m_current->m_pos;
         return true;
     }
     else if (element.ValueStr() == "obj")
@@ -202,6 +209,7 @@ bool XMLSceneVisitor::VisitEnter(const TiXmlElement& element, const TiXmlAttribu
 
         glm::vec3 center(cx, cy, cz);
         m_current = new ObjMesh(DEFAULT_OBJ_MODEL, center, scale);
+		m_current->m_ini_pos=m_current->m_pos;
         return true;
     }
     else

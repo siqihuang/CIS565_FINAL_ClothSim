@@ -59,6 +59,9 @@ static float* dev_Val;
 static int dev_nnz;
 
 static int springConstraintNum;
+static float tear_value;
+static bool tearable;
+static glm::vec3 *dev_primitive_pos;
 
 /*
 helper function for matrix operation
@@ -399,7 +402,7 @@ __global__ void addGravityOnGPU(glm::vec3 *force,float mass,int N){
 	}
 }
 
-__global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int *torn,int *torn_id,int N,int ns){
+__global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int *torn,int *torn_id,float tear_value,bool tearable,int N,int ns){
 	int index=blockDim.x*blockIdx.x+threadIdx.x;
 	if(index<N){
 		if(constraint[index].type==0&&constraint[index].active){//Attachment Constraint
@@ -428,11 +431,13 @@ __global__ void PBDProjectKernel(GPUConstraint *constraint,glm::vec3 *p,int *tor
 			atomicAdd(&p[constraint[index].p2].y,0.5f*k_prime*dp.y);
 			atomicAdd(&p[constraint[index].p2].z,0.5f*k_prime*dp.z);
 
-			if(current_length>1.2*rest_length){ 
+			if(tearable&&current_length>tear_value*rest_length){ 
 				torn[0]=1;
 				constraint[index].active=false;
-				torn_id[constraint[index].triangleId1]=1;
-				torn_id[constraint[index].triangleId2]=1;
+				if(constraint[index].triangleId1!=-1)
+					torn_id[constraint[index].triangleId1]=1;
+				if(constraint[index].triangleId2!=-1)
+					torn_id[constraint[index].triangleId2]=1;
 			}
 			//p[constraint[index].p1]-=0.5f*k_prime*dp;
 			//p[constraint[index].p2]+=0.5f*k_prime*dp;
@@ -527,6 +532,8 @@ void initData(){
 
 	cudaMalloc(&dev_torn_id,triangleNum*sizeof(int));
 	cudaMalloc(&dev_torn,sizeof(int));
+	
+	cudaMalloc(&dev_primitive_pos,primitiveNum*sizeof(glm::vec3));
 
 	cudaMemcpy(dev_pos,pos,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_vel,vel,dimension*sizeof(glm::vec3),cudaMemcpyHostToDevice);
@@ -566,6 +573,8 @@ void deleteData(){
 	cudaFree(dev_torn_id);
 	cudaFree(dev_torn);
 
+	cudaFree(dev_primitive_pos);
+
 	delete(force);
 	delete(pos);
 	delete(vel);
@@ -577,7 +586,8 @@ void deleteData(){
 }
 
 void copyData(GPUConstraint *GConstraint,GPUPrimitive *GPrimitive,glm::vec3 *Gpos,glm::vec3 *Gvel,int Gheight,int Gwidth
-			  ,int GconstraintNum,int GspringConstraintNum,int GprimitiveNum,int GtriangleNum,float Gmass,float Grestitution_coefficient,float Gdamping_coefficient){
+			  ,int GconstraintNum,int GspringConstraintNum,int GprimitiveNum,int GtriangleNum,float Gmass,
+			  float Grestitution_coefficient,float Gdamping_coefficient,float Gtear_value,bool Gtearable){
 	constraint=GConstraint;
 	primitive=GPrimitive;
 	height=Gheight;
@@ -590,6 +600,8 @@ void copyData(GPUConstraint *GConstraint,GPUPrimitive *GPrimitive,glm::vec3 *Gpo
 	mass=Gmass;
 	restitution_coefficient=Grestitution_coefficient;
 	damping_coefficient=Gdamping_coefficient;
+	tear_value=Gtear_value;
+	tearable=Gtearable;
 	force=new glm::vec3[height*width];
 	pos=new glm::vec3[height*width];
 	vel=new glm::vec3[height*width];
@@ -682,7 +694,7 @@ void integratePBDOnGPU(int ns,float dt)
 		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_vel,dev_external_force,dev_vel,dt*1.0/mass,dimension);
 		vector_add_mulvector<<<(dimension+255)/256,256>>>(dev_pos,dev_vel,dev_pbd,dt,dimension);
 
-		PBDProjectKernel<<<(constraintNum+255)/256,256>>>(dev_constraint,dev_pbd,dev_torn,dev_torn_id,constraintNum,ns);
+		PBDProjectKernel<<<(constraintNum+255)/256,256>>>(dev_constraint,dev_pbd,dev_torn,dev_torn_id,tear_value,tearable,constraintNum,ns);
 	
 		vector_minus_vector_mul<<<(dimension+255)/256,256>>>(dev_pbd,dev_pos,dev_vel,1.0/(dt),dimension);
 		vector_copy_vector<<<(dimension+255)/256,256>>>(dev_pos,dev_pbd,dimension);
@@ -1010,6 +1022,18 @@ int *getTornId(){
 void resetTornFlag(){
 	torn=0;
 	cudaMemset(dev_torn,0,sizeof(int));
+}
+
+__global__ void updatePrimitivePostionOnGPU(GPUPrimitive *primitive,glm::vec3 *newPos,int N){
+	int index=blockIdx.x*blockDim.x+threadIdx.x;
+	if(index<N){
+		primitive[index].pos=newPos[index];
+	}
+}
+
+void updatePrimitivePosition(glm::vec3 *newPos){
+	cudaMemcpy(dev_primitive_pos,newPos,primitiveNum*sizeof(glm::vec3),cudaMemcpyHostToDevice);
+	updatePrimitivePostionOnGPU<<<(primitiveNum+255)/256,256>>>(dev_primitive,dev_primitive_pos,primitiveNum);
 }
 
 /*

@@ -55,7 +55,8 @@ m_h
 void testCuda();
 void collisionResolving();
 void copyData(GPUConstraint *GConstraint,GPUPrimitive *Gprimitive,glm::vec3 *pos,glm::vec3 *vel,int height,int width,
-			  int constraintNum,int springConstraintNum,int primitiveNum,int triangleNum,float mass,float restitution_coefficient,float damping_coefficient);
+			  int constraintNum,int springConstraintNum,int primitiveNum,int triangleNum,float mass,float restitution_coefficient,
+			  float damping_coefficient,float tear_value,bool tearable);
 void calculateExternalForceoOnGPU();
 void calculateExternalForceoOnGPU1();
 void integratePBDOnGPU(int ns,float dt);
@@ -71,6 +72,7 @@ void integrateExplicitRK2_GPU(float dt);
 void integrateExplicitRK4_GPU(float dt);
 void integrateImplicitBW_GPU(float dt);
 void convertSystemMatrix(std::vector<int> & host_Rows, std::vector<int> & host_Cols, std::vector<float> & host_Val);
+void updatePrimitivePosition(glm::vec3 *newPos);
 
 kdtree *initTree(kdtree *root);
 

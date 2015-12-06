@@ -4,6 +4,6 @@
     <!--<sphere cx="-2.0" cy="5.0" cz="1.0" radius="2"></sphere>-->
     <!--<sphere cx="-3.0" cy="5.0" cz="2.0" radius="2"></sphere>-->
     <!--<cube cx="2.0" cy="4.0" cz="0.0" hx="1" hy="1" hz="2"></cube>-->
-    <obj cx="1" cy="6.5.0" cz="-2" scale="7"></obj>
+    <obj cx="0" cy="6.5.0" cz="0" scale="7"></obj>
   </primitives>
 </scene>

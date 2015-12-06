@@ -46,6 +46,12 @@ void Simulation::Reset()
 {    
     m_external_force.resize(m_mesh->m_system_dimension);
 	deleteData();
+
+	for(std::vector<Primitive*>::iterator iter =m_scene->m_primitives.begin(); iter !=m_scene->m_primitives.end(); ++iter)
+	{
+		(*iter)->m_pos=(*iter)->m_ini_pos;
+	}
+
     setupConstraints();
 	computeSystemMatrix();
 	EigenVector3 v;
@@ -54,6 +60,19 @@ void Simulation::Reset()
 }
 
 void Simulation::Update(){
+	if(g_object_move){
+		glm::vec3 *newPos=new glm::vec3[m_scene->m_primitives.size()];
+		int count=0;
+		for(std::vector<Primitive*>::iterator iter =m_scene->m_primitives.begin(); iter !=m_scene->m_primitives.end(); ++iter)
+		{
+			if((*iter)->m_has_vel){
+				(*iter)->m_pos+=(*iter)->m_vel;
+			}
+			newPos[count++]=(*iter)->m_pos;
+		}
+		updatePrimitivePosition(newPos);
+		delete(newPos);
+	}
 	if(g_GPU_render){ 
 		GPUUpdate();
 	}
@@ -372,6 +391,10 @@ void Simulation::copyDataToGPU(vector<pair<int,int>> v){
 				Gconstraint[i].triangleId1=v[i].first;
 				Gconstraint[i].triangleId2=v[i].second;
 			}
+			else{
+				Gconstraint[i].triangleId1=-1;
+				Gconstraint[i].triangleId2=-1;
+			}
 		}
 	}
 	//copy constraint
@@ -434,7 +457,8 @@ void Simulation::copyDataToGPU(vector<pair<int,int>> v){
 	//copy position and velocity
 	float mass=m_mesh->m_mass_matrix.coeff(0,0);
 	copyData(Gconstraint,Gprimitive,pos,vel,m_mesh->m_dim[0],m_mesh->m_dim[1],m_constraints.size(),
-		springConstraintNum,m_scene->m_primitives.size(),m_mesh->m_triangle_list.size()/3,mass,m_restitution_coefficient,m_damping_coefficient);
+		springConstraintNum,m_scene->m_primitives.size(),m_mesh->m_triangle_list.size()/3,
+		mass,m_restitution_coefficient,m_damping_coefficient,m_cloth_tear_value,g_cloth_tear);
 
 	delete(pos);
 	delete(vel);
@@ -470,30 +494,31 @@ void Simulation::setupConstraints()
 			
 			// TODO
             // generate bending constraints. naive solution using cross springs 
-			/*int X=m_mesh->m_dim[0];//width
-			int Y=m_mesh->m_dim[1];//height
-			for(int i=0;i<Y;i++){
-				for(int j=0;j<X-2;j++){
-					p1 = m_mesh->m_current_positions.block_vector(X*i+j);
-					p2 = m_mesh->m_current_positions.block_vector(X*i+j+2);
-					SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,X*i+j,X*i+j+2,(p1-p2).norm());
-					m_constraints.push_back(c);
-					springConstraintNum++;
+			if(!g_cloth_tear){
+				int X=m_mesh->m_dim[0];//width
+				int Y=m_mesh->m_dim[1];//height
+				for(int i=0;i<Y;i++){
+					for(int j=0;j<X-2;j++){
+						p1 = m_mesh->m_current_positions.block_vector(X*i+j);
+						p2 = m_mesh->m_current_positions.block_vector(X*i+j+2);
+						SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,X*i+j,X*i+j+2,(p1-p2).norm());
+						m_constraints.push_back(c);
+						springConstraintNum++;
+					}
+				}
+
+				for(int i=0;i<X;i++){
+					for(int j=0;j<Y-2;j++){
+						p1 = m_mesh->m_current_positions.block_vector(Y*i+j);
+						p2 = m_mesh->m_current_positions.block_vector(Y*i+j+2);
+						SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,Y*i+j,Y*i+j+2,(p1-p2).norm());
+						m_constraints.push_back(c);
+						springConstraintNum++;
+					}
 				}
 			}
-
-			for(int i=0;i<X;i++){
-				for(int j=0;j<Y-2;j++){
-					p1 = m_mesh->m_current_positions.block_vector(Y*i+j);
-					p2 = m_mesh->m_current_positions.block_vector(Y*i+j+2);
-					SpringConstraint *c=new SpringConstraint(&m_stiffness_bending,&m_stiffness_stretch_pbd,Y*i+j,Y*i+j+2,(p1-p2).norm());
-					m_constraints.push_back(c);
-					springConstraintNum++;
-				}
-			}*/
-
-			AddAttachmentConstraint(0);
-            AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
+			//AddAttachmentConstraint(0);
+            //AddAttachmentConstraint(m_mesh->m_dim[1]*(m_mesh->m_dim[0]-1));
         }
         break;
     case MESH_TYPE_TET:

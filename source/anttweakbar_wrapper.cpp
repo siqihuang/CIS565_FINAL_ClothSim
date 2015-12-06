@@ -52,6 +52,8 @@ extern bool g_pause;
 extern bool g_show_wireframe;
 extern bool g_show_texture;
 extern bool g_GPU_render;
+extern bool g_cloth_tear;
+extern bool g_object_move;
 
 //----------anttweakbar handlers----------//
 extern void TW_CALL reset_simulation(void*);
@@ -86,6 +88,8 @@ void AntTweakBarWrapper::Init()
     TwAddButton(m_control_panel_bar, "Step Once", step_through, NULL, "group='State Control' ");
     TwAddVarRW(m_control_panel_bar, "Record", TwType(sizeof(bool)), &(g_record), "group='State Control'");
 	TwAddVarRW(m_control_panel_bar, "GPU", TwType(sizeof(bool)), &(g_GPU_render), "group='State Control'");
+	TwAddVarRW(m_control_panel_bar, "Tear", TwType(sizeof(bool)), &(g_cloth_tear), "group='State Control'");
+	TwAddVarRW(m_control_panel_bar, "Obj Move", TwType(sizeof(bool)), &(g_object_move), "group='State Control'");
     TwAddSeparator(m_control_panel_bar, NULL, "");
     // visualization
     TwAddVarRW(m_control_panel_bar, "Wireframe", TwType(sizeof(bool)), &(g_show_wireframe), "group='Visualization'");
@@ -153,6 +157,7 @@ void AntTweakBarWrapper::Init()
     TwAddVarRW(m_sim_bar, "Gravity", TW_TYPE_SCALAR_TYPE, &g_simulation->m_gravity_constant, " group='Constants' ");
     TwAddVarRW(m_sim_bar, "Damping Coefficient", TW_TYPE_SCALAR_TYPE, &g_simulation->m_damping_coefficient, " min=0 step=0.001 group='Constants' ");
 	TwAddVarRW(m_sim_bar, "Restitution Coefficient", TW_TYPE_SCALAR_TYPE, &g_simulation->m_restitution_coefficient, "min=0 max=1 step=0.001 group='Constants' ");
+	TwAddVarRW(m_sim_bar, "Cloth Tear Strength", TW_TYPE_SCALAR_TYPE, &g_simulation->m_cloth_tear_value, "min=1.2 max=5 step=0.01 group='Constants' ");
     // !simulation settings bar
 
     TwDefine(" TW_HELP visible=false ");

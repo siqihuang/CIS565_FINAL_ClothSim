@@ -50,6 +50,8 @@ class Mesh;
 class AntTweakBarWrapper;
 
 extern bool g_GPU_render;
+extern bool g_cloth_tear;
+extern bool g_object_move;
 
 typedef enum
 {
@@ -112,6 +114,7 @@ protected:
 	ScalarType m_stiffness_bending_pbd;
     ScalarType m_damping_coefficient;
 	ScalarType m_restitution_coefficient;
+	ScalarType m_cloth_tear_value;
 
     // integration method
     IntegrationMethod m_integration_method;
