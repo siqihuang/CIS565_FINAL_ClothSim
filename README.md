@@ -34,7 +34,7 @@ Next Step:
 3. more advanced integration method (projective dynamics)
 4. new simulation effect (tear apart, etc)
 
-Presentation Slides Link: (https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit)
+Presentation Slides Link: (https://docs.google.com/presentation/d/11hLZRSBLbAv0bsrRw1vXXsuu3ncNj1UpvBmuZB7ff5E/edit?usp=sharing)
 
 ### MileStone2 (11/30/2015)
 
@@ -51,8 +51,24 @@ Next Step:
 3. detailed performance analysis
 4. improving the shader
 
-Presentation Slides Link: (https://docs.google.com/presentation/d/1w5eOXz4IK8DZFQqKDkIC5HjKT8hTvjFJlC4LQjbyFWg/edit#slide=id.p)
+Presentation Slides Link: (https://docs.google.com/presentation/d/1w5eOXz4IK8DZFQqKDkIC5HjKT8hTvjFJlC4LQjbyFWg/edit?usp=sharing)
 
+### MileStone3 (12/7/2015)
+
+Progress:
+
+1. finish the implementation of cloth trearing feature
+2. finish the implementation of cloth self-collision
+3. finish the implementation of new shader
+
+
+Next Step:
+
+1. Performance Analysis
+2. Demo Creation
+3. "*** Polish the code and adding new features (user interaction, etc.) ***"
+
+Presentation Slides Link: (https://docs.google.com/presentation/d/17yJgBsn3dMI6hz9sOIewUYsKLIjcYYmOaqrHFI2k5ks/edit?usp=sharing)
 
 
 
