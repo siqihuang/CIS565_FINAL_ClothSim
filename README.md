@@ -74,4 +74,13 @@ Presentation Slides Link: (https://docs.google.com/presentation/d/17yJgBsn3dMI6h
 
 Slides Link: (https://docs.google.com/presentation/d/1ywdBxPHv_mPhfjz4zERtnLXnV_xNAmKroLEGFNd2UQQ/edit?usp=sharing)
 
+Algorithm
+========================
 
+We are using two way of integration method for the simulation of cloth mesh. One is force based method, the other is position based method.
+
+### Force Based Method
+
+In the force based method, we treat each point on the cloth mesh as a mass point, which has the property of position and velocity. We attach spring for each pair of neighbour points and apply Hook's Law to calculate the internal force and update the position and velocity each frame.
+
+![](https://github.com/siqihuang/CIS565_FINAL_ClothSim/blob/master/pic/force_based_method.png?raw=true)
