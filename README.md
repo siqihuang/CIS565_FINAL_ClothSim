@@ -84,3 +84,9 @@ We are using two way of integration method for the simulation of cloth mesh. One
 In the force based method, we treat each point on the cloth mesh as a mass point, which has the property of position and velocity. We attach spring for each pair of neighbour points and apply Hook's Law to calculate the internal force and update the position and velocity each frame.
 
 ![](https://github.com/siqihuang/CIS565_FINAL_ClothSim/blob/master/pic/force_based_method.png?raw=true)
+
+We test Explicit Method (RK1, Rk2, RK4) and Implicit Method seperately and compare their stability and computation time. We found that for the explicit method, the higher order the RK method is, the more stable the simulation is (We are using the largest simulation tim step to measure this part). The implicit mehthod is way much more stable than any of the explicit method, but it requires much more computaion time. Also, we have compared the performance of CPU version and GPU version of the simulation (more detail on latter Performance Analysis section). However, we found it strange that the GPU version of implicit method implemented using the cuSolver is slower than the CPU verison implemented by the Eigen Solver. We suspect that this is caused by the I/O bottleneck in GPU (since we need to formulize the data to feed into the cuda solver) or the Eigen is super optimized in solving this kind of linear system.
+
+### Position Based Method
+
+
