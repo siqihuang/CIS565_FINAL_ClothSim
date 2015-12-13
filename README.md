@@ -92,3 +92,14 @@ We test Explicit Method (RK1, Rk2, RK4) and Implicit Method seperately and compa
 This part we are implementing the algorithm given by Position Base Dynamics (http://matthias-mueller-fischer.ch/publications/posBasedDyn.pdf) The main workflow is as follows:
 
 ![](https://github.com/siqihuang/CIS565_FINAL_ClothSim/blob/master/pic/pbd_workflow.png?raw=true)
+
+Performance Analysis
+========================
+
+Demo Video
+========================
+[![video1](http://img.youtube.com/vi/uJImY-I7LBU/0.jpg)](http://www.youtube.com/watch?v=uJImY-I7LBU)
+[![video2](http://img.youtube.com/vi/bkrS-DjJZrM/0.jpg)](http://www.youtube.com/watch?v=bkrS-DjJZrM)
+[![video3](http://img.youtube.com/vi/jIAqLqZhTg0/0.jpg)](http://www.youtube.com/watch?v=jIAqLqZhTg0)
+[![video4](http://img.youtube.com/vi/n8ZgMlkArFg/0.jpg)](http://www.youtube.com/watch?v=n8ZgMlkArFg)
+[![video5](http://img.youtube.com/vi/tuhjUOxhpA0/0.jpg)](http://www.youtube.com/watch?v=tuhjUOxhpA0)
