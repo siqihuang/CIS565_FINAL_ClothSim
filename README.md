@@ -116,6 +116,31 @@ collision with obj:
 ![](image/pbd-obj-value.png)
 It is obvious that in both method, the integration in CPU takes most of the time and share. As PBD is much faster than RK4, it uses less time in both CPU and GPU
 
+#2 Different Grid-Size:
+grid size 50(cube vs obj):
+========================
+![](image/cube-50-share.png)
+![](image/obj-50-share.png)
+========================
+![](image/cube-50-value.png)
+![](image/obj-50-value.png)
+
+grid size 100(cube vs obj):
+========================
+![](image/cube-100-share.png)
+![](image/obj-100-share.png)
+========================
+![](image/cube-100-value.png)
+![](image/obj-100-value.png)
+
+grid size 200(cube vs obj):
+========================
+![](image/cube-200-share.png)
+![](image/obj-200-share.png)
+========================
+![](image/cube-200-value.png)
+![](image/obj-200-value.png)
+
 Demo Video
 ========================
 [![video1](http://img.youtube.com/vi/uJImY-I7LBU/0.jpg)](http://www.youtube.com/watch?v=uJImY-I7LBU)
