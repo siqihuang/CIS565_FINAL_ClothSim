@@ -148,10 +148,24 @@ grid size 200(cube vs obj):
 time used between different process(cube vs obj)
 ========================
 ![](image/cube-mul-size.png)
-![](image/obj-mul.size.png)
+![](image/obj-mul-size.png)
 
 We can see clearly that as the mesh size goes up, for the GPU part both the integration and collision goes up. But the collision in obj collision case goes up aggressively. This indicates that the collision with obj uses most of the time when the mesh size is large. That is very easy to understand because the actual collision detection process is not in a parallel way, which makes it similar with CPU. For the cube intersection case, it is a very parallel process. So the time is relatively short here.
 
+#3 bottleneck:
+GPU bottleneck
+========================
+![](image/GPU-collision.png)
+![](image/CPU-collision.png)
+
+the left image is the collision with object in GPU, and the right one is in CPU. We can see the collision time used in GPU is even higher in CPU when colliding with object. And the trend of the time increase as the object size increase in GPU is similar in CPU, which indicate that the GPU side also suffer from the problem of collision detection. So the bottleneck in GPU is in collision detection with object.
+
+CPU bottleneck
+========================
+![](image/GPU-integration.png)
+![](image/CPU-integration.png)
+
+the left image is the integration time in GPU while the right one is the time in CPU. In either case CPU uses more time in integration, which makes it the bottleneck for CPU.
 
 Demo Video
 ========================
