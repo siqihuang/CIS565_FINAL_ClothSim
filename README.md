@@ -100,8 +100,9 @@ The following time is in millisecond
 collision with cube:
 ![](image/pbd-cube-share.png)
 ![](image/rk4-cube-share.png)
+=====================
 ![](image/pbd-cube-value.png)
-![](image/pbd-cube-value.pnga)
+![](image/pbd-cube-value.png)
 
 Demo Video
 ========================
