@@ -98,21 +98,23 @@ Performance Analysis
 The following time is in millisecond
 #1 Different Method: PBD VS RK4
 collision with cube:
-=======================
+========================
 ![](image/pbd-cube-share.png)
 ![](image/rk4-cube-share.png)
-=====================
+
+========================
 ![](image/pbd-cube-value.png)
 ![](image/pbd-cube-value.png)
 
 collision with obj:
-=======================
+========================
 ![](image/pbd-obj-share.png)
 ![](image/rk4-obj-share.png)
-=====================
-![](image/pbd-obj-value.png)
-![](image/pbd-obj-value.png)
 
+========================
+![](image/pbd-obj-value.png)
+![](image/pbd-obj-value.png)
+It is obvious that in both method, the integration in CPU takes most of the time and share. As PBD is much faster than RK4, it uses less time in both CPU and GPU
 
 Demo Video
 ========================
