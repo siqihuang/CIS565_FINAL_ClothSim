@@ -112,6 +112,12 @@ collision with obj:
 
 ![](image/pbd-obj-value.png)
 ![](image/pbd-obj-value.png)
+
+time used in different process:
+========================
+![](image/pbd-mul-obj-value.png)
+![](image/rk4-mul-obj-value.png)
+
 It is obvious that in both method, the integration in CPU takes most of the time and share. As PBD is much faster than RK4, it uses less time in both CPU and GPU
 
 #2 Different Grid-Size:
@@ -138,6 +144,14 @@ grid size 200(cube vs obj):
 
 ![](image/cube-200-value.png)
 ![](image/obj-200-value.png)
+
+time used between different process(cube vs obj)
+========================
+![](image/cube-mul-size.png)
+![](image/obj-mul.size.png)
+
+We can see clearly that as the mesh size goes up, for the GPU part both the integration and collision goes up. But the collision in obj collision case goes up aggressively. This indicates that the collision with obj uses most of the time when the mesh size is large. That is very easy to understand because the actual collision detection process is not in a parallel way, which makes it similar with CPU. For the cube intersection case, it is a very parallel process. So the time is relatively short here.
+
 
 Demo Video
 ========================
